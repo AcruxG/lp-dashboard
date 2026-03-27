@@ -79,7 +79,15 @@ export default function App() {
   const [pricePerHour, setPricePerHour] = useState(5000);
   const [discount, setDiscount] = useState(22);
   const [tutorCostPerHour, setTutorCostPerHour] = useState(2800);
+  // Danışmanlık (Consulting)
+  const [numApps, setNumApps] = useState(5);
+  const [pricePerApp, setPricePerApp] = useState(50000);
+  const [numConsultants, setNumConsultants] = useState(1);
+  const [consultantWage, setConsultantWage] = useState(30000);
+  // Manager
+  const [managerWage, setManagerWage] = useState(50000);
 
+  // Course calculations
   const avgRev      = Math.round(hours * pricePerHour * (1 - discount / 100));
   const avgCst      = Math.round(hours * tutorCostPerHour);
   const avgMargin   = avgRev - avgCst;
@@ -87,18 +95,34 @@ export default function App() {
   const cstPerStu   = numCourses * avgCst;
   const margPerStu  = numCourses * avgMargin;
 
-  const totalRev    = numStudents * revPerStu;
-  const totalCst    = numStudents * cstPerStu;
-  const totalGross  = numStudents * margPerStu;
+  // Danışmanlık calculations
+  const danRevTotal = numApps * pricePerApp;
+  const danCstTotal = numConsultants * consultantWage * 12;
+  const danMargin   = danRevTotal - danCstTotal;
+
+  // Manager annual cost
+  const managerAnnual = managerWage * 12;
+
+  // Combined totals
+  const courseRevTotal = numStudents * revPerStu;
+  const courseCstTotal = numStudents * cstPerStu;
+  const courseGross    = numStudents * margPerStu;
+
+  const totalRev    = courseRevTotal + danRevTotal;
+  const totalCst    = courseCstTotal + danCstTotal + managerAnnual;
+  const totalGross  = totalRev - totalCst;
   // KDV (VAT) — 20% included in revenue → extracted as rev × 20/120
-  const kdvPerStu   = revPerStu * 20 / 120;
-  const totalKdv    = numStudents * kdvPerStu;
-  const netMarginPerStu = margPerStu - kdvPerStu;
-  const preTaxProfit = totalGross - fc - totalKdv;
+  const totalKdv    = totalRev * 20 / 120;
+  const totalFC     = fc;
+  const preTaxProfit = totalGross - totalFC - totalKdv;
   // Kurumlar Vergisi (Corporate Tax) — 25% on profit (only if positive)
   const corpTax     = preTaxProfit > 0 ? preTaxProfit * 0.25 : 0;
   const netProfit   = preTaxProfit - corpTax;
-  const breakEvenN  = netMarginPerStu > 0 ? Math.ceil(fc / (netMarginPerStu * 0.75)) : Infinity;
+
+  // Break-even (for course-only, simplified)
+  const netMarginPerStu = margPerStu - (revPerStu * 20 / 120);
+  const fixedTotal  = fc + danCstTotal + managerAnnual - danRevTotal + (danRevTotal * 20 / 120);
+  const breakEvenN  = netMarginPerStu > 0 ? Math.ceil(Math.max(0, fixedTotal) / (netMarginPerStu * 0.75)) : Infinity;
   const grossPct    = revPerStu > 0 ? (margPerStu / revPerStu * 100) : 0;
 
   // Chart: profit vs students for different course counts (1..8)
@@ -108,24 +132,30 @@ export default function App() {
     for (let c = 1; c <= 8; c++) {
       const cRevPerStu = c * avgRev;
       const cMarginPerStu = c * avgMargin;
-      const cKdvPerStu = cRevPerStu * 20 / 120;
-      const preTax = n * cMarginPerStu - fc - n * cKdvPerStu;
+      const courseRev = n * cRevPerStu;
+      const combinedRev = courseRev + danRevTotal;
+      const combinedCst = n * c * avgCst + danCstTotal + managerAnnual;
+      const combinedGross = combinedRev - combinedCst;
+      const kdv = combinedRev * 20 / 120;
+      const preTax = combinedGross - fc - kdv;
       const tax = preTax > 0 ? preTax * 0.25 : 0;
       row[`C${c}`] = preTax - tax;
     }
     return row;
-  }), [fc, avgMargin, avgRev, maxN]);
+  }), [fc, avgMargin, avgRev, avgCst, danRevTotal, danCstTotal, managerAnnual, maxN]);
 
   // Scenario rows
   const scenarioNs = [...new Set([1, 3, 5, 8, 10, 15, 20, 25, 30, numStudents])].sort((a,b) => a - b);
   const scenRows = scenarioNs.map(n => {
-    const rev   = n * revPerStu;
-    const gross = n * margPerStu;
-    const kdv   = n * kdvPerStu;
-    const preTax = gross - fc - kdv;
+    const courseRev = n * revPerStu;
+    const combinedRev = courseRev + danRevTotal;
+    const combinedCst = n * cstPerStu + danCstTotal + managerAnnual;
+    const combinedGross = combinedRev - combinedCst;
+    const kdv = combinedRev * 20 / 120;
+    const preTax = combinedGross - fc - kdv;
     const tax   = preTax > 0 ? preTax * 0.25 : 0;
     const net   = preTax - tax;
-    return { n, rev, cst: n * cstPerStu, gross, kdv, tax, net, green: net >= 0 };
+    return { n, rev: combinedRev, cst: combinedCst, gross: combinedGross, kdv, tax, net, green: net >= 0 };
   });
 
   // Course catalog stats by category
@@ -189,9 +219,18 @@ export default function App() {
 
         {/* Fixed costs */}
         <div style={{ ...S.card, padding:20 }}>
-          <div style={S.label}>Yıllık Sabit Gider — FC (₺)</div>
+          <div style={S.label}>Diğer Sabit Gider — FC (₺)</div>
           <input type="number" value={fc} onChange={e => setFc(+e.target.value)} style={S.input} />
-          <div style={{ fontSize:10, color:"#7d8590", marginTop:8 }}>İşletme + ders sabit giderleri</div>
+          <div style={{ fontSize:10, color:"#7d8590", marginTop:8 }}>İşletme sabit giderleri (kira, vs.)</div>
+        </div>
+
+        {/* Manager wage */}
+        <div style={{ ...S.card, padding:20 }}>
+          <div style={S.label}>Yönetici Aylık Maaş (₺)</div>
+          <input type="number" value={managerWage} onChange={e => setManagerWage(+e.target.value)} style={S.input} />
+          <div style={{ fontSize:10, color:"#7d8590", marginTop:8 }}>
+            Yıllık: <span style={{ color:"#e6edf3" }}>₺{fmt(managerAnnual)}</span>
+          </div>
         </div>
       </div>
 
@@ -249,6 +288,60 @@ export default function App() {
         </div>
       </div>
 
+      {/* ── Danışmanlık Controls ── */}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr 1fr", gap:14, marginBottom:20 }}>
+        <div style={{ ...S.card, padding:16 }}>
+          <div style={S.label}>Başvuru Sayısı</div>
+          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+            <input type="range" min={0} max={30} value={numApps}
+              onChange={e => setNumApps(+e.target.value)}
+              style={{ flex:1, accentColor:"#ec4899", cursor:"pointer", height:6 }} />
+            <span style={{ fontSize:24, fontWeight:700, color:"#ec4899", minWidth:36, textAlign:"center" }}>{numApps}</span>
+          </div>
+          <div style={{ fontSize:10, color:"#7d8590", marginTop:4 }}>Danışmanlık başvurusu</div>
+        </div>
+        <div style={{ ...S.card, padding:16 }}>
+          <div style={S.label}>Başvuru Fiyatı (₺)</div>
+          <input type="number" value={pricePerApp} onChange={e => setPricePerApp(+e.target.value)} style={{...S.input, fontSize:16}} />
+          <div style={{ fontSize:10, color:"#7d8590", marginTop:4 }}>Başvuru başına ücret</div>
+        </div>
+        <div style={{ ...S.card, padding:16 }}>
+          <div style={S.label}>Danışman Sayısı</div>
+          <input type="number" min={0} value={numConsultants} onChange={e => setNumConsultants(+e.target.value)} style={{...S.input, fontSize:16}} />
+          <div style={{ fontSize:10, color:"#7d8590", marginTop:4 }}>Tam zamanlı danışman</div>
+        </div>
+        <div style={{ ...S.card, padding:16 }}>
+          <div style={S.label}>Danışman Aylık Maaş (₺)</div>
+          <input type="number" value={consultantWage} onChange={e => setConsultantWage(+e.target.value)} style={{...S.input, fontSize:16}} />
+          <div style={{ fontSize:10, color:"#7d8590", marginTop:4 }}>Kişi başı aylık</div>
+        </div>
+      </div>
+
+      {/* ── Danışmanlık Summary ── */}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:14, marginBottom:20 }}>
+        <div style={{ ...S.card, padding:16, display:"flex", flexDirection:"column", justifyContent:"center" }}>
+          <div style={S.label}>Danışmanlık Geliri</div>
+          <div style={{ fontSize:22, fontWeight:700, color:"#ec4899" }}>₺{fmt(danRevTotal)}</div>
+          <div style={{ fontSize:10, color:"#7d8590", marginTop:2 }}>
+            {numApps} başvuru × ₺{fmt(pricePerApp)}
+          </div>
+        </div>
+        <div style={{ ...S.card, padding:16, display:"flex", flexDirection:"column", justifyContent:"center" }}>
+          <div style={S.label}>Danışman Gideri</div>
+          <div style={{ fontSize:22, fontWeight:700, color:"#ef4444" }}>₺{fmt(danCstTotal)}</div>
+          <div style={{ fontSize:10, color:"#7d8590", marginTop:2 }}>
+            {numConsultants} kişi × ₺{fmt(consultantWage)} × 12 ay
+          </div>
+        </div>
+        <div style={{ ...S.card, padding:16, display:"flex", flexDirection:"column", justifyContent:"center" }}>
+          <div style={S.label}>Danışmanlık Marjini</div>
+          <div style={{ fontSize:22, fontWeight:700, color: danMargin >= 0 ? "#00d4aa" : "#ef4444" }}>₺{fmt(danMargin)}</div>
+          <div style={{ fontSize:10, color:"#7d8590", marginTop:2 }}>
+            Gelir − Gider
+          </div>
+        </div>
+      </div>
+
       {/* ── Profit Result Card ── */}
       <div style={{
         ...S.card, padding:"24px 32px", marginBottom:20,
@@ -257,14 +350,16 @@ export default function App() {
           : "linear-gradient(135deg, #ef444410 0%, #161b22 100%)",
         borderColor: netProfit >= 0 ? "#00d4aa33" : "#ef444433"
       }}>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:20, alignItems:"center" }}>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:20, alignItems:"center" }}>
           <div>
             <div style={S.label}>Toplam Gelir</div>
             <div style={{ fontSize:20, fontWeight:700, color:"#3b82f6" }}>₺{fmt(totalRev)}</div>
+            <div style={{ fontSize:9, color:"#7d8590" }}>Kurs ₺{fmt(courseRevTotal)} + Dan. ₺{fmt(danRevTotal)}</div>
           </div>
           <div>
-            <div style={S.label}>Değişken Gider</div>
+            <div style={S.label}>Toplam Gider</div>
             <div style={{ fontSize:20, fontWeight:700, color:"#ef4444" }}>₺{fmt(totalCst)}</div>
+            <div style={{ fontSize:9, color:"#7d8590" }}>Kurs + Dan. + Yönetici</div>
           </div>
           <div>
             <div style={S.label}>KDV (%20)</div>
@@ -272,7 +367,11 @@ export default function App() {
           </div>
           <div>
             <div style={S.label}>Sabit Gider</div>
-            <div style={{ fontSize:20, fontWeight:700, color:"#ef4444" }}>₺{fmt(fc)}</div>
+            <div style={{ fontSize:20, fontWeight:700, color:"#ef4444" }}>₺{fmt(totalFC)}</div>
+          </div>
+          <div>
+            <div style={S.label}>Brüt Marjin</div>
+            <div style={{ fontSize:20, fontWeight:700, color: totalGross >= 0 ? "#e6edf3" : "#ef4444" }}>₺{fmt(totalGross)}</div>
           </div>
         </div>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:20, alignItems:"center", marginTop:16, paddingTop:16, borderTop:"1px solid #30363d" }}>
@@ -292,7 +391,7 @@ export default function App() {
           </div>
         </div>
         <div style={{ marginTop:12, fontSize:11, color:"#7d8590" }}>
-          Brüt Marjin ₺{fmt(totalGross)} − FC ₺{fmt(fc)} − KDV ₺{fmt(totalKdv)} = Vergi Öncesi ₺{fmt(preTaxProfit)}
+          Gelir ₺{fmt(totalRev)} − Gider ₺{fmt(totalCst)} − FC ₺{fmt(totalFC)} − KDV ₺{fmt(totalKdv)} = VÖ ₺{fmt(preTaxProfit)}
           {preTaxProfit > 0 && <> − KV %25 ₺{fmt(corpTax)}</>}
           {" "}= <span style={{ color: netProfit >= 0 ? "#00d4aa" : "#ef4444", fontWeight:700 }}>
             {netProfit >= 0 ? "+" : ""}₺{fmt(netProfit)}
@@ -303,9 +402,9 @@ export default function App() {
       {/* ── KPI Strip ── */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:14, marginBottom:20 }}>
         {[
-          { label:"Marjin / Öğrenci",  value:`₺${fmt(margPerStu)}`,    color:"#00d4aa" },
-          { label:"KDV / Öğrenci",     value:`₺${fmt(kdvPerStu)}`,     color:"#f97316" },
-          { label:"Net Marjin / Öğrenci", value:`₺${fmt(netMarginPerStu)}`, color:"#3b82f6" },
+          { label:"Kurs Marjini / Öğr.",  value:`₺${fmt(margPerStu)}`,    color:"#00d4aa" },
+          { label:"Danışmanlık Geliri",  value:`₺${fmt(danRevTotal)}`,   color:"#ec4899" },
+          { label:"Yönetici + FC",        value:`₺${fmt(managerAnnual + fc)}`, color:"#ef4444" },
           { label:"Başa Baş Noktası",  value: breakEvenN === Infinity ? "∞" : `${breakEvenN} öğrenci`, color: numStudents >= breakEvenN ? "#00d4aa" : "#f59e0b" },
           { label:"Mevcut Durum",       value: numStudents >= breakEvenN ? "KÂRDA ✓" : "ZARARDA ✗", color: numStudents >= breakEvenN ? "#00d4aa" : "#ef4444" },
         ].map(k => (
