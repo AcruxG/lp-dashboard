@@ -86,8 +86,12 @@ export default function App() {
   const totalRev    = numStudents * revPerStu;
   const totalCst    = numStudents * cstPerStu;
   const totalGross  = numStudents * margPerStu;
-  const netProfit   = totalGross - fc;
-  const breakEvenN  = margPerStu > 0 ? Math.ceil(fc / margPerStu) : Infinity;
+  // KDV (VAT) — 20% included in revenue → extracted as rev × 20/120
+  const kdvPerStu   = revPerStu * 20 / 120;
+  const totalKdv    = numStudents * kdvPerStu;
+  const netMarginPerStu = margPerStu - kdvPerStu;
+  const netProfit   = totalGross - fc - totalKdv;
+  const breakEvenN  = netMarginPerStu > 0 ? Math.ceil(fc / netMarginPerStu) : Infinity;
   const grossPct    = revPerStu > 0 ? (margPerStu / revPerStu * 100) : 0;
 
   // Chart: profit vs students for different course counts (1..8)
@@ -95,18 +99,22 @@ export default function App() {
   const chartData = useMemo(() => Array.from({ length: maxN + 1 }, (_, n) => {
     const row = { n };
     for (let c = 1; c <= 8; c++) {
-      row[`C${c}`] = n * c * avgMargin - fc;
+      const cRevPerStu = c * avgRev;
+      const cMarginPerStu = c * avgMargin;
+      const cKdvPerStu = cRevPerStu * 20 / 120;
+      row[`C${c}`] = n * cMarginPerStu - fc - n * cKdvPerStu;
     }
     return row;
-  }), [fc, avgMargin, maxN]);
+  }), [fc, avgMargin, avgRev, maxN]);
 
   // Scenario rows
   const scenarioNs = [...new Set([1, 3, 5, 8, 10, 15, 20, 25, 30, numStudents])].sort((a,b) => a - b);
   const scenRows = scenarioNs.map(n => {
     const rev   = n * revPerStu;
     const gross = n * margPerStu;
-    const net   = gross - fc;
-    return { n, rev, cst: n * cstPerStu, gross, net, green: net >= 0 };
+    const kdv   = n * kdvPerStu;
+    const net   = gross - fc - kdv;
+    return { n, rev, cst: n * cstPerStu, gross, kdv, net, green: net >= 0 };
   });
 
   // Course catalog stats by category
@@ -215,7 +223,7 @@ export default function App() {
           : "linear-gradient(135deg, #ef444410 0%, #161b22 100%)",
         borderColor: netProfit >= 0 ? "#00d4aa33" : "#ef444433"
       }}>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:20, alignItems:"center" }}>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(6,1fr)", gap:20, alignItems:"center" }}>
           <div>
             <div style={S.label}>Toplam Gelir</div>
             <div style={{ fontSize:20, fontWeight:700, color:"#3b82f6" }}>₺{fmt(totalRev)}</div>
@@ -223,6 +231,10 @@ export default function App() {
           <div>
             <div style={S.label}>Değişken Gider</div>
             <div style={{ fontSize:20, fontWeight:700, color:"#ef4444" }}>₺{fmt(totalCst)}</div>
+          </div>
+          <div>
+            <div style={S.label}>KDV (%20)</div>
+            <div style={{ fontSize:20, fontWeight:700, color:"#f97316" }}>₺{fmt(totalKdv)}</div>
           </div>
           <div>
             <div style={S.label}>Brüt Kâr</div>
@@ -240,7 +252,7 @@ export default function App() {
           </div>
         </div>
         <div style={{ marginTop:12, fontSize:11, color:"#7d8590" }}>
-          {numStudents} öğrenci × {numCourses} kurs × ₺{fmt(avgMargin)} marjin − ₺{fmt(fc)} sabit gider
+          {numStudents} öğrenci × {numCourses} kurs × ₺{fmt(avgMargin)} marjin − ₺{fmt(fc)} sabit gider − ₺{fmt(totalKdv)} KDV
           = <span style={{ color: netProfit >= 0 ? "#00d4aa" : "#ef4444", fontWeight:700 }}>
             {netProfit >= 0 ? "+" : ""}₺{fmt(netProfit)}
           </span>
@@ -251,8 +263,8 @@ export default function App() {
       <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:14, marginBottom:20 }}>
         {[
           { label:"Marjin / Öğrenci",  value:`₺${fmt(margPerStu)}`,    color:"#00d4aa" },
-          { label:"Gelir / Öğrenci",   value:`₺${fmt(revPerStu)}`,     color:"#3b82f6" },
-          { label:"Marjin Oranı",      value:`%${grossPct.toFixed(1)}`, color:"#00d4aa" },
+          { label:"KDV / Öğrenci",     value:`₺${fmt(kdvPerStu)}`,     color:"#f97316" },
+          { label:"Net Marjin / Öğrenci", value:`₺${fmt(netMarginPerStu)}`, color:"#3b82f6" },
           { label:"Başa Baş Noktası",  value: breakEvenN === Infinity ? "∞" : `${breakEvenN} öğrenci`, color: numStudents >= breakEvenN ? "#00d4aa" : "#f59e0b" },
           { label:"Mevcut Durum",       value: numStudents >= breakEvenN ? "KÂRDA ✓" : "ZARARDA ✗", color: numStudents >= breakEvenN ? "#00d4aa" : "#ef4444" },
         ].map(k => (
@@ -304,7 +316,7 @@ export default function App() {
             <table style={{ width:"100%", borderCollapse:"collapse", fontSize:11 }}>
               <thead>
                 <tr style={{ background:"#0d1117", position:"sticky", top:0 }}>
-                  {["n","Yıllık Gelir","Brüt Kâr","Sabit Gider","NET KÂR"].map(h => (
+                  {["n","Yıllık Gelir","Brüt Kâr","KDV","Sabit Gider","NET KÂR"].map(h => (
                     <th key={h} style={{ padding:"8px 12px", textAlign:"right",
                                          color:"#7d8590", fontWeight:600, fontSize:10, textTransform:"uppercase" }}>{h}</th>
                   ))}
@@ -323,6 +335,7 @@ export default function App() {
                     </td>
                     <td style={{ padding:"10px 12px", color:"#3b82f6", textAlign:"right" }}>₺{fmt(row.rev)}</td>
                     <td style={{ padding:"10px 12px", color:"#e6edf3", textAlign:"right" }}>₺{fmt(row.gross)}</td>
+                    <td style={{ padding:"10px 12px", color:"#f97316", textAlign:"right" }}>₺{fmt(row.kdv)}</td>
                     <td style={{ padding:"10px 12px", color:"#ef4444", textAlign:"right" }}>₺{fmt(fc)}</td>
                     <td style={{ padding:"10px 12px", fontWeight:700, textAlign:"right",
                                  color: row.green ? "#00d4aa" : "#ef4444" }}>
@@ -350,7 +363,8 @@ export default function App() {
 
       {/* Footer */}
       <div style={{ marginTop:16, color:"#7d8590", fontSize:10, textAlign:"center", lineHeight:1.8 }}>
-        Net Kâr = n_öğrenci × kurs_sayısı × ort_marjin − sabit_gider
+        Net Kâr = n_öğrenci × kurs_sayısı × ort_marjin − sabit_gider − KDV
+        &nbsp;|&nbsp; KDV = Gelir × 20/120
         &nbsp;|&nbsp; Ort. Gelir: ₺{fmt(avgRev)} · Ort. Gider: ₺{fmt(avgCst)} · Ort. Marjin: ₺{fmt(avgMargin)}
         &nbsp;|&nbsp; Yıllık FC: ₺{fmt(fc)}
         &nbsp;|&nbsp; Veriler: Ders Kataloğu ({ALL_COURSES.length} kurs)
