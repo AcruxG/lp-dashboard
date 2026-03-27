@@ -94,8 +94,11 @@ export default function App() {
   const kdvPerStu   = revPerStu * 20 / 120;
   const totalKdv    = numStudents * kdvPerStu;
   const netMarginPerStu = margPerStu - kdvPerStu;
-  const netProfit   = totalGross - fc - totalKdv;
-  const breakEvenN  = netMarginPerStu > 0 ? Math.ceil(fc / netMarginPerStu) : Infinity;
+  const preTaxProfit = totalGross - fc - totalKdv;
+  // Kurumlar Vergisi (Corporate Tax) — 25% on profit (only if positive)
+  const corpTax     = preTaxProfit > 0 ? preTaxProfit * 0.25 : 0;
+  const netProfit   = preTaxProfit - corpTax;
+  const breakEvenN  = netMarginPerStu > 0 ? Math.ceil(fc / (netMarginPerStu * 0.75)) : Infinity;
   const grossPct    = revPerStu > 0 ? (margPerStu / revPerStu * 100) : 0;
 
   // Chart: profit vs students for different course counts (1..8)
@@ -106,7 +109,9 @@ export default function App() {
       const cRevPerStu = c * avgRev;
       const cMarginPerStu = c * avgMargin;
       const cKdvPerStu = cRevPerStu * 20 / 120;
-      row[`C${c}`] = n * cMarginPerStu - fc - n * cKdvPerStu;
+      const preTax = n * cMarginPerStu - fc - n * cKdvPerStu;
+      const tax = preTax > 0 ? preTax * 0.25 : 0;
+      row[`C${c}`] = preTax - tax;
     }
     return row;
   }), [fc, avgMargin, avgRev, maxN]);
@@ -117,8 +122,10 @@ export default function App() {
     const rev   = n * revPerStu;
     const gross = n * margPerStu;
     const kdv   = n * kdvPerStu;
-    const net   = gross - fc - kdv;
-    return { n, rev, cst: n * cstPerStu, gross, kdv, net, green: net >= 0 };
+    const preTax = gross - fc - kdv;
+    const tax   = preTax > 0 ? preTax * 0.25 : 0;
+    const net   = preTax - tax;
+    return { n, rev, cst: n * cstPerStu, gross, kdv, tax, net, green: net >= 0 };
   });
 
   // Course catalog stats by category
@@ -250,7 +257,7 @@ export default function App() {
           : "linear-gradient(135deg, #ef444410 0%, #161b22 100%)",
         borderColor: netProfit >= 0 ? "#00d4aa33" : "#ef444433"
       }}>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(6,1fr)", gap:20, alignItems:"center" }}>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:20, alignItems:"center" }}>
           <div>
             <div style={S.label}>Toplam Gelir</div>
             <div style={{ fontSize:20, fontWeight:700, color:"#3b82f6" }}>₺{fmt(totalRev)}</div>
@@ -264,12 +271,18 @@ export default function App() {
             <div style={{ fontSize:20, fontWeight:700, color:"#f97316" }}>₺{fmt(totalKdv)}</div>
           </div>
           <div>
-            <div style={S.label}>Brüt Kâr</div>
-            <div style={{ fontSize:20, fontWeight:700, color:"#e6edf3" }}>₺{fmt(totalGross)}</div>
-          </div>
-          <div>
             <div style={S.label}>Sabit Gider</div>
             <div style={{ fontSize:20, fontWeight:700, color:"#ef4444" }}>₺{fmt(fc)}</div>
+          </div>
+        </div>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:20, alignItems:"center", marginTop:16, paddingTop:16, borderTop:"1px solid #30363d" }}>
+          <div>
+            <div style={S.label}>Vergi Öncesi Kâr</div>
+            <div style={{ fontSize:20, fontWeight:700, color: preTaxProfit >= 0 ? "#e6edf3" : "#ef4444" }}>₺{fmt(preTaxProfit)}</div>
+          </div>
+          <div>
+            <div style={S.label}>Kurumlar Vergisi (%25)</div>
+            <div style={{ fontSize:20, fontWeight:700, color:"#a855f7" }}>₺{fmt(corpTax)}</div>
           </div>
           <div>
             <div style={S.label}>NET KÂR</div>
@@ -279,8 +292,9 @@ export default function App() {
           </div>
         </div>
         <div style={{ marginTop:12, fontSize:11, color:"#7d8590" }}>
-          {numStudents} öğrenci × {numCourses} kurs × ₺{fmt(avgMargin)} marjin − ₺{fmt(fc)} sabit gider − ₺{fmt(totalKdv)} KDV
-          = <span style={{ color: netProfit >= 0 ? "#00d4aa" : "#ef4444", fontWeight:700 }}>
+          Brüt Marjin ₺{fmt(totalGross)} − FC ₺{fmt(fc)} − KDV ₺{fmt(totalKdv)} = Vergi Öncesi ₺{fmt(preTaxProfit)}
+          {preTaxProfit > 0 && <> − KV %25 ₺{fmt(corpTax)}</>}
+          {" "}= <span style={{ color: netProfit >= 0 ? "#00d4aa" : "#ef4444", fontWeight:700 }}>
             {netProfit >= 0 ? "+" : ""}₺{fmt(netProfit)}
           </span>
         </div>
@@ -343,7 +357,7 @@ export default function App() {
             <table style={{ width:"100%", borderCollapse:"collapse", fontSize:11 }}>
               <thead>
                 <tr style={{ background:"#0d1117", position:"sticky", top:0 }}>
-                  {["n","Yıllık Gelir","Brüt Kâr","KDV","Sabit Gider","NET KÂR"].map(h => (
+                  {["n","Yıllık Gelir","Brüt Kâr","KDV","Sabit Gider","KV %25","NET KÂR"].map(h => (
                     <th key={h} style={{ padding:"8px 12px", textAlign:"right",
                                          color:"#7d8590", fontWeight:600, fontSize:10, textTransform:"uppercase" }}>{h}</th>
                   ))}
@@ -364,6 +378,7 @@ export default function App() {
                     <td style={{ padding:"10px 12px", color:"#e6edf3", textAlign:"right" }}>₺{fmt(row.gross)}</td>
                     <td style={{ padding:"10px 12px", color:"#f97316", textAlign:"right" }}>₺{fmt(row.kdv)}</td>
                     <td style={{ padding:"10px 12px", color:"#ef4444", textAlign:"right" }}>₺{fmt(fc)}</td>
+                    <td style={{ padding:"10px 12px", color:"#a855f7", textAlign:"right" }}>₺{fmt(row.tax)}</td>
                     <td style={{ padding:"10px 12px", fontWeight:700, textAlign:"right",
                                  color: row.green ? "#00d4aa" : "#ef4444" }}>
                       {row.green ? "+" : ""}₺{fmt(row.net)}
@@ -390,8 +405,8 @@ export default function App() {
 
       {/* Footer */}
       <div style={{ marginTop:16, color:"#7d8590", fontSize:10, textAlign:"center", lineHeight:1.8 }}>
-        Net Kâr = n_öğrenci × kurs_sayısı × ort_marjin − sabit_gider − KDV
-        &nbsp;|&nbsp; KDV = Gelir × 20/120
+        Net Kâr = (Brüt Marjin − FC − KDV) × 0.75
+        &nbsp;|&nbsp; KDV = Gelir × 20/120 · Kurumlar Vergisi = %25
         &nbsp;|&nbsp; Ort. Gelir: ₺{fmt(avgRev)} · Ort. Gider: ₺{fmt(avgCst)} · Ort. Marjin: ₺{fmt(avgMargin)}
         &nbsp;|&nbsp; Yıllık FC: ₺{fmt(fc)}
         &nbsp;|&nbsp; Veriler: Ders Kataloğu ({ALL_COURSES.length} kurs)
