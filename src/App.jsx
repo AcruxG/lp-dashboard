@@ -75,9 +75,13 @@ export default function App() {
   const [numCourses, setNumCourses] = useState(3);
   const [numStudents, setNumStudents] = useState(10);
   const [fc, setFc] = useState(139252);
-  const [avgRev, setAvgRev] = useState(AVG_REV);
-  const [avgCst, setAvgCst] = useState(AVG_CST);
+  const [hours, setHours] = useState(30);
+  const [pricePerHour, setPricePerHour] = useState(5000);
+  const [discount, setDiscount] = useState(22);
+  const [tutorCostPerHour, setTutorCostPerHour] = useState(2800);
 
+  const avgRev      = Math.round(hours * pricePerHour * (1 - discount / 100));
+  const avgCst      = Math.round(hours * tutorCostPerHour);
   const avgMargin   = avgRev - avgCst;
   const revPerStu   = numCourses * avgRev;
   const cstPerStu   = numCourses * avgCst;
@@ -184,26 +188,49 @@ export default function App() {
         </div>
       </div>
 
-      {/* ── Average Price Controls ── */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:14, marginBottom:20 }}>
+      {/* ── Course Pricing Controls ── */}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr 1fr", gap:14, marginBottom:20 }}>
         <div style={{ ...S.card, padding:16 }}>
-          <div style={S.label}>Ort. Kurs Geliri (₺)</div>
-          <input type="number" value={avgRev} onChange={e => setAvgRev(+e.target.value)} style={{...S.input, fontSize:16}} />
-          <div style={{ fontSize:10, color:"#7d8590", marginTop:4 }}>
-            Katalog ort: ₺{fmt(AVG_REV)}
-            <button onClick={() => setAvgRev(AVG_REV)}
-              style={{ marginLeft:8, background:"transparent", border:"1px solid #30363d", color:"#7d8590",
-                       borderRadius:4, padding:"1px 6px", cursor:"pointer", fontSize:9 }}>sıfırla</button>
-          </div>
+          <div style={S.label}>Ders Saati (saat)</div>
+          <input type="number" value={hours} onChange={e => setHours(+e.target.value)} style={{...S.input, fontSize:16}} />
+          <div style={{ fontSize:10, color:"#7d8590", marginTop:4 }}>Kurs başına toplam saat</div>
         </div>
         <div style={{ ...S.card, padding:16 }}>
-          <div style={S.label}>Ort. Kurs Gideri (₺)</div>
-          <input type="number" value={avgCst} onChange={e => setAvgCst(+e.target.value)} style={{...S.input, fontSize:16}} />
-          <div style={{ fontSize:10, color:"#7d8590", marginTop:4 }}>
-            Katalog ort: ₺{fmt(AVG_CST)}
-            <button onClick={() => setAvgCst(AVG_CST)}
-              style={{ marginLeft:8, background:"transparent", border:"1px solid #30363d", color:"#7d8590",
-                       borderRadius:4, padding:"1px 6px", cursor:"pointer", fontSize:9 }}>sıfırla</button>
+          <div style={S.label}>Saat Fiyatı (₺)</div>
+          <input type="number" value={pricePerHour} onChange={e => setPricePerHour(+e.target.value)} style={{...S.input, fontSize:16}} />
+          <div style={{ fontSize:10, color:"#7d8590", marginTop:4 }}>Öğrenciye satış fiyatı</div>
+        </div>
+        <div style={{ ...S.card, padding:16 }}>
+          <div style={S.label}>İndirim (%)</div>
+          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+            <input type="range" min={0} max={50} value={discount}
+              onChange={e => setDiscount(+e.target.value)}
+              style={{ flex:1, accentColor:"#f59e0b", cursor:"pointer", height:6 }} />
+            <span style={{ fontSize:20, fontWeight:700, color:"#f59e0b", minWidth:40, textAlign:"center" }}>%{discount}</span>
+          </div>
+          <div style={{ fontSize:10, color:"#7d8590", marginTop:4 }}>Paket indirimi</div>
+        </div>
+        <div style={{ ...S.card, padding:16 }}>
+          <div style={S.label}>Eğitmen Saat Ücreti (₺)</div>
+          <input type="number" value={tutorCostPerHour} onChange={e => setTutorCostPerHour(+e.target.value)} style={{...S.input, fontSize:16}} />
+          <div style={{ fontSize:10, color:"#7d8590", marginTop:4 }}>Eğitmene ödenen saat başı</div>
+        </div>
+      </div>
+
+      {/* ── Derived Averages ── */}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:14, marginBottom:20 }}>
+        <div style={{ ...S.card, padding:16, display:"flex", flexDirection:"column", justifyContent:"center" }}>
+          <div style={S.label}>Ort. Kurs Geliri</div>
+          <div style={{ fontSize:22, fontWeight:700, color:"#3b82f6" }}>₺{fmt(avgRev)}</div>
+          <div style={{ fontSize:10, color:"#7d8590", marginTop:2 }}>
+            {hours} saat × ₺{fmt(pricePerHour)} × {(100 - discount)}% = ₺{fmt(avgRev)}
+          </div>
+        </div>
+        <div style={{ ...S.card, padding:16, display:"flex", flexDirection:"column", justifyContent:"center" }}>
+          <div style={S.label}>Ort. Kurs Gideri</div>
+          <div style={{ fontSize:22, fontWeight:700, color:"#ef4444" }}>₺{fmt(avgCst)}</div>
+          <div style={{ fontSize:10, color:"#7d8590", marginTop:2 }}>
+            {hours} saat × ₺{fmt(tutorCostPerHour)} = ₺{fmt(avgCst)}
           </div>
         </div>
         <div style={{ ...S.card, padding:16, display:"flex", flexDirection:"column", justifyContent:"center" }}>
