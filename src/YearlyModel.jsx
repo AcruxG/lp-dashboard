@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { useAppContext } from "./AppContext";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ReferenceLine, ResponsiveContainer,
@@ -100,48 +101,8 @@ const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, per
 };
 
 // ── Main ─────────────────────────────────────────────────────────────────────
-export default function App() {
-  const [numCourses, setNumCourses] = useState(3);
-  const [numStudents, setNumStudents] = useState(10);
-  const [tableExpanded, setTableExpanded] = useState(false);
-  const [fc, setFc] = useState(139252);
-  const [hours, setHours] = useState(40);
-  const [pricePerHour, setPricePerHour] = useState(4000);
-  const [discount, setDiscount] = useState(10);
-  const [tutorCostPerHour, setTutorCostPerHour] = useState(2000);
-  
-  // Danışmanlık (Consulting)
-  const [numApps, setNumApps] = useState(5);
-  const [pricePerAppUsd, setPricePerAppUsd] = useState(700);
-  const [usdTry, setUsdTry] = useState(38);
-  const [rateStatus, setRateStatus] = useState("loading");
-  const [numConsultants, setNumConsultants] = useState(1);
-  const [consultantWage, setConsultantWage] = useState(30000);
-  const [payMode, setPayMode] = useState("wage"); // "wage" | "commission"
-  const [commissionPct, setCommissionPct] = useState(20);
-  
-  // Manager
-  const [managerWage, setManagerWage] = useState(50000);
-
-  // Fetch live USD/TRY rate
-  useEffect(() => {
-    const fetchRate = async () => {
-      try {
-        const res = await fetch("https://api.exchangerate-api.com/v4/latest/USD");
-        const data = await res.json();
-        if (data?.rates?.TRY) {
-          setUsdTry(Math.round(data.rates.TRY * 100) / 100);
-          setRateStatus("live");
-        } else {
-          setRateStatus("manual");
-        }
-      } catch {
-        setRateStatus("manual");
-      }
-    };
-    fetchRate();
-  }, []);
-
+export default function YearlyModel() {
+  const { numCourses, setNumCourses, numStudents, setNumStudents, hours, setHours, pricePerHour, setPricePerHour, discount, setDiscount, tutorCostPerHour, setTutorCostPerHour, numApps, setNumApps, pricePerAppUsd, setPricePerAppUsd, usdTry, setUsdTry, rateStatus, setRateStatus, numConsultants, setNumConsultants, consultantWage, setConsultantWage, payMode, setPayMode, commissionPct, setCommissionPct, managerWage, setManagerWage, fcKira, setFcKira, fcKiraStopaj, setFcKiraStopaj, fcDamga, setFcDamga, fcSmmm, setFcSmmm, fcSmmmStopaj, setFcSmmmStopaj, fcIto, setFcIto, fcNoter, setFcNoter, fcWeb, setFcWeb, fcY, setFcY, fcKredi, setFcKredi, fcKurulus, setFcKurulus, fcBagkur, setFcBagkur, fc, totalMonthlyFc, totalAnnualOneOffFc } = useAppContext();
   // Course calculations
   const avgRev = Math.round(hours * pricePerHour * (1 - discount / 100));
   const avgCst = Math.round(hours * tutorCostPerHour);
@@ -282,7 +243,7 @@ export default function App() {
       <div style={S.sectionTitle}>
         1. Kurum Ayarları
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 20 }}>
         {/* Number of students */}
         <div style={{ ...S.card, padding: 20 }}>
           <div style={S.label}>Toplam Öğrenci Sayısı</div>
@@ -298,14 +259,6 @@ export default function App() {
             </span>
           </div>
         </div>
-
-        {/* Fixed costs */}
-        <div style={{ ...S.card, padding: 20 }}>
-          <div style={S.label}>Diğer Sabit Gider — FC (₺)</div>
-          <input type="number" value={fc} onChange={e => setFc(+e.target.value)} style={S.input} />
-          <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 8 }}>İşletme sabit giderleri (kira, vb.)</div>
-        </div>
-
         {/* Manager wage */}
         <div style={{ ...S.card, padding: 20 }}>
           <div style={S.label}>Yönetici Aylık Maaş (₺)</div>
@@ -315,6 +268,39 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      {/* ── 1.1 Sabit Giderler (FC) ── */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 18, fontWeight: 700, color: "#FFFFFF", marginBottom: 16, marginTop: 40, borderBottom: "1px solid #14465B", paddingBottom: 10 }}>
+        1.1 Sabit Gider Detayları (Aylık & Yıllık)
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 20 }}>
+        <div style={{ ...S.card, padding: 16 }}><div style={S.label}>Kira (Aylık)</div><input type="number" value={fcKira} onChange={e => setFcKira(+e.target.value)} style={S.input} /></div>
+        <div style={{ ...S.card, padding: 16 }}><div style={S.label}>Kira Stop. (Aylık)</div><input type="number" value={fcKiraStopaj} onChange={e => setFcKiraStopaj(+e.target.value)} style={S.input} /></div>
+        <div style={{ ...S.card, padding: 16 }}><div style={S.label}>SMMM (Aylık)</div><input type="number" value={fcSmmm} onChange={e => setFcSmmm(+e.target.value)} style={S.input} /></div>
+        <div style={{ ...S.card, padding: 16 }}><div style={S.label}>SMMM Stop. (Aylık)</div><input type="number" value={fcSmmmStopaj} onChange={e => setFcSmmmStopaj(+e.target.value)} style={S.input} /></div>
+        
+        <div style={{ ...S.card, padding: 16 }}><div style={S.label}>Web Sitesi (Aylık)</div><input type="number" value={fcWeb} onChange={e => setFcWeb(+e.target.value)} style={S.input} /></div>
+        <div style={{ ...S.card, padding: 16 }}><div style={S.label}>Sabit Gider Y (Aylık)</div><input type="number" value={fcY} onChange={e => setFcY(+e.target.value)} style={S.input} /></div>
+        <div style={{ ...S.card, padding: 16 }}><div style={S.label}>Kredi (Aylık)</div><input type="number" value={fcKredi} onChange={e => setFcKredi(+e.target.value)} style={S.input} /></div>
+        <div style={{ ...S.card, padding: 16 }}><div style={S.label}>Bağkur (Aylık)</div><input type="number" value={fcBagkur} onChange={e => setFcBagkur(+e.target.value)} style={S.input} /></div>
+        
+        <div style={{ ...S.card, padding: 16 }}><div style={S.label}>Damga Verg. (Yıllık)</div><input type="number" value={fcDamga} onChange={e => setFcDamga(+e.target.value)} style={S.input} /></div>
+        <div style={{ ...S.card, padding: 16 }}><div style={S.label}>İTO Aidatı (Yıllık)</div><input type="number" value={fcIto} onChange={e => setFcIto(+e.target.value)} style={S.input} /></div>
+        <div style={{ ...S.card, padding: 16 }}><div style={S.label}>Noter Tasdik (Yıllık)</div><input type="number" value={fcNoter} onChange={e => setFcNoter(+e.target.value)} style={S.input} /></div>
+        <div style={{ ...S.card, padding: 16 }}><div style={S.label}>Kuruluş İşlem (Yıllık)</div><input type="number" value={fcKurulus} onChange={e => setFcKurulus(+e.target.value)} style={S.input} /></div>
+      </div>
+      
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 20 }}>
+        <div style={{ ...S.card, padding: 20 }}>
+          <div style={S.label}>Aylık Toplam Sabit Gider (FC)</div>
+          <div style={{ fontSize: 24, fontWeight: 700, color: "#FFFFFF" }}>₺{new Intl.NumberFormat("tr-TR").format(totalMonthlyFc)}</div>
+        </div>
+        <div style={{ ...S.card, padding: 20 }}>
+          <div style={S.label}>Yıllık Toplam Sabit Gider (FC - Yönetici Hariç)</div>
+          <div style={{ fontSize: 24, fontWeight: 700, color: "#F25C5C" }}>₺{new Intl.NumberFormat("tr-TR").format(fc)}</div>
+        </div>
+      </div>
+
 
       {/* ── 2. Akademik Kurs Ayarları ── */}
       <div style={S.sectionTitle}>
