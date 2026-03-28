@@ -102,6 +102,7 @@ const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, per
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 export default function YearlyModel() {
+  const [tableExpanded, setTableExpanded] = useState(false);
   const { numCourses, setNumCourses, numStudents, setNumStudents, hours, setHours, pricePerHour, setPricePerHour, discount, setDiscount, tutorCostPerHour, setTutorCostPerHour, numApps, setNumApps, pricePerAppUsd, setPricePerAppUsd, usdTry, setUsdTry, rateStatus, setRateStatus, numConsultants, setNumConsultants, consultantWage, setConsultantWage, payMode, setPayMode, commissionPct, setCommissionPct, managerWage, setManagerWage, fcKira, setFcKira, fcKiraStopaj, setFcKiraStopaj, fcDamga, setFcDamga, fcSmmm, setFcSmmm, fcSmmmStopaj, setFcSmmmStopaj, fcIto, setFcIto, fcNoter, setFcNoter, fcWeb, setFcWeb, fcY, setFcY, fcKredi, setFcKredi, fcKurulus, setFcKurulus, fcBagkur, setFcBagkur, fc, totalMonthlyFc, totalAnnualOneOffFc } = useAppContext();
   // Course calculations
   const avgRev = Math.round(hours * pricePerHour * (1 - discount / 100));
