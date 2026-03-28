@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ReferenceLine, ResponsiveContainer,
-  BarChart, Bar, Cell, AreaChart, Area
+  BarChart, Bar, Cell, AreaChart, Area, PieChart, Pie
 } from "recharts";
 
 // ── Course Catalog ───────────────────────────────────────────────────────────
@@ -69,6 +69,19 @@ const ChartTip = ({ active, payload, label }) => {
           {p.name}: <b>₺{fmt(p.value)}</b>
         </div>
       ))}
+    </div>
+  );
+};
+
+const PieChartTip = ({ active, payload }) => {
+  if (!active || !payload?.length) return null;
+  const p = payload[0].payload;
+  return (
+    <div style={{ background: "#0d1117", border: "1px solid #30363d", borderRadius: 8, padding: "10px 14px", zIndex: 100 }}>
+      <div style={{ color: p.color, fontSize: 11, fontWeight: 700 }}>{p.name}</div>
+      <div style={{ color: "#e6edf3", fontSize: 12, marginTop: 4 }}>
+        ₺{fmt(p.value)}
+      </div>
     </div>
   );
 };
@@ -220,6 +233,20 @@ export default function App() {
     catStats[c.cat].totalRev += c.rev;
     catStats[c.cat].totalCst += c.cst;
   });
+
+  const gelirData = [
+    { name: "Kurs Geliri", value: courseRevTotal, color: "#3b82f6" },
+    { name: "Danışmanlık Geliri", value: danRevTotal, color: "#ec4899" }
+  ].filter(d => d.value > 0);
+
+  const giderData = [
+    { name: "Kurs Eğitmen Gideri", value: courseCstTotal, color: "#8b5cf6" },
+    { name: "Danışman Gideri", value: danCstTotal, color: "#ec4899" },
+    { name: "Yönetici Maaşı", value: managerAnnual, color: "#f97316" },
+    { name: "Diğer Sabit Gider (FC)", value: fc, color: "#ef4444" },
+    { name: "KDV (%20)", value: totalKdv, color: "#a855f7" }
+  ].filter(d => d.value > 0);
+  if (corpTax > 0) giderData.push({ name: "Kurumlar Vergisi (%25)", value: corpTax, color: "#eab308" });
 
   return (
     <div style={S.page}>
@@ -535,6 +562,45 @@ export default function App() {
           {" "}= <span style={{ color: netProfit >= 0 ? "#00d4aa" : "#ef4444", fontWeight: 700 }}>
             {netProfit >= 0 ? "+" : ""}₺{fmt(netProfit)}
           </span>
+        </div>
+      </div>
+
+      {/* ── Pie Charts ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+        {/* Gelir Dağılımı */}
+        <div style={{ ...S.card, padding: 20, display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <div style={S.label}>Gelir Dağılımı</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center", marginBottom: 10 }}>
+            {gelirData.map(d => (
+              <div key={d.name} style={S.tag(d.color)}>{d.name} (₺{fmtK(d.value)})</div>
+            ))}
+          </div>
+          <ResponsiveContainer width="100%" height={240}>
+            <PieChart>
+              <Pie data={gelirData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={90} stroke="none">
+                {gelirData.map((d, i) => <Cell key={i} fill={d.color} />)}
+              </Pie>
+              <Tooltip content={<PieChartTip />} />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Gider Dağılımı */}
+        <div style={{ ...S.card, padding: 20, display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <div style={S.label}>Gider Dağılımı (KDV Dahil)</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center", marginBottom: 10 }}>
+            {giderData.map(d => (
+              <div key={d.name} style={S.tag(d.color)}>{d.name} (₺{fmtK(d.value)})</div>
+            ))}
+          </div>
+          <ResponsiveContainer width="100%" height={240}>
+            <PieChart>
+              <Pie data={giderData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={90} stroke="none">
+                {giderData.map((d, i) => <Cell key={i} fill={d.color} />)}
+              </Pie>
+              <Tooltip content={<PieChartTip />} />
+            </PieChart>
+          </ResponsiveContainer>
         </div>
       </div>
 
