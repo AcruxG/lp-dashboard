@@ -62,11 +62,11 @@ const S = {
 const ChartTip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div style={{ background: "#060A0D", border: "1px solid #14465B", borderRadius: 8, padding: "10px 14px" }}>
-      <div style={{ color: "#94A3B8", fontSize: 11, marginBottom: 6 }}>{label} öğrenci</div>
+    <div style={{ background: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: 8, padding: "10px 14px", boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)" }}>
+      <div style={{ color: "#475569", fontSize: 11, marginBottom: 6, fontWeight: 600 }}>{label} öğrenci</div>
       {payload.map(p => (
-        <div key={p.name} style={{ color: p.color, fontSize: 11 }}>
-          {p.name}: <b>₺{fmt(p.value)}</b>
+        <div key={p.name} style={{ color: p.color, fontSize: 11, display: "flex", gap: 4 }}>
+          <span>{p.name}:</span> <b style={{ color: "#0F172A" }}>₺{fmt(p.value)}</b>
         </div>
       ))}
     </div>
@@ -643,25 +643,27 @@ export default function App() {
               Aktif: <span style={{ color: "#048C8C" }}>{numCourses} kurs</span> (kalın çizgi)
             </div>
           </div>
-          <ResponsiveContainer width="100%" height={320}>
-            <LineChart data={chartData} margin={{ top: 5, right: 24, bottom: 16, left: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1A5369" />
-              <XAxis dataKey="n" stroke="#94A3B8" tick={{ fontSize: 10, fill: "#94A3B8" }}
-                label={{ value: "Öğrenci Sayısı (n)", position: "insideBottom", offset: -8, fill: "#94A3B8", fontSize: 10 }} />
-              <YAxis stroke="#94A3B8" tick={{ fontSize: 10, fill: "#94A3B8" }} tickFormatter={v => `₺${fmtK(v)}`} />
-              <Tooltip content={<ChartTip />} />
-              <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
-              <ReferenceLine y={0} stroke="#1A5369" strokeDasharray="5 5"
-                label={{ value: "Başa Baş", fill: "#1A5369", fontSize: 10, position: "insideTopLeft" }} />
-              <ReferenceLine x={numStudents} stroke="#1A536944" strokeDasharray="3 3" />
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((c, i) => (
-                <Line key={c} type="monotone" dataKey={`C${c}`} name={`${c} kurs`}
-                  stroke={LINE_COLORS[i]} dot={false}
-                  strokeWidth={c === numCourses ? 3 : 1}
-                  strokeOpacity={c === numCourses ? 1 : 0.2} />
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
+          <div style={{ background: "#F8FAFC", borderRadius: 8, padding: "20px 16px 0 0", marginTop: 14 }}>
+            <ResponsiveContainer width="100%" height={320}>
+              <LineChart data={chartData} margin={{ top: 5, right: 24, bottom: 16, left: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#CBD5E1" />
+                <XAxis dataKey="n" stroke="#475569" tick={{ fontSize: 10, fill: "#475569" }}
+                  label={{ value: "Öğrenci Sayısı (n)", position: "insideBottom", offset: -8, fill: "#475569", fontSize: 10 }} />
+                <YAxis stroke="#475569" tick={{ fontSize: 10, fill: "#475569" }} tickFormatter={v => `₺${fmtK(v)}`} />
+                <Tooltip content={<ChartTip />} />
+                <Legend wrapperStyle={{ fontSize: 11, paddingTop: 4, color: "#0F172A" }} />
+                <ReferenceLine y={0} stroke="#D97706" strokeDasharray="5 5"
+                  label={{ value: "Başa Baş", fill: "#D97706", fontSize: 10, position: "insideTopLeft", fontWeight: "bold" }} />
+                <ReferenceLine x={numStudents} stroke="#D97706" strokeDasharray="3 3" />
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((c, i) => (
+                  <Line key={c} type="monotone" dataKey={`C${c}`} name={`${c} kurs`}
+                    stroke={LINE_COLORS[i]} dot={false}
+                    strokeWidth={c === numCourses ? 3 : 1}
+                    strokeOpacity={c === numCourses ? 1 : 0.2} />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
         {/* Scenario Table */}
@@ -704,8 +706,8 @@ export default function App() {
                   }}>
                     <td style={{ padding: "10px 12px", fontWeight: 700, color: "#FFFFFF", textAlign: "right" }}>
                       {row.n}
-                      {row.n === numStudents && <span style={{ color: "#1A5369", fontSize: 9 }}> ★</span>}
-                      {row.n === breakEvenN && <span style={{ color: "#1A5369", fontSize: 9 }}> BE</span>}
+                      {row.n === numStudents && <span style={{ color: "#FBBF24", fontSize: 11 }}> ★</span>}
+                      {row.n === breakEvenN && <span style={{ color: "#FBBF24", fontSize: 11, fontWeight: "bold" }}> BE</span>}
                     </td>
                     <td style={{ padding: "10px 12px", color: "#037A7A", textAlign: "right" }}>₺{fmt(row.rev)}</td>
                     <td style={{ padding: "10px 12px", color: "#FFFFFF", textAlign: "right" }}>₺{fmt(row.gross)}</td>
