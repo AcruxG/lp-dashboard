@@ -122,7 +122,8 @@ export default function App() {
 
   // Danışmanlık calculations
   const pricePerAppTl = Math.round(pricePerAppUsd * usdTry);
-  const danRevTotal = numApps * pricePerAppTl;
+  const totalApps = numApps * numStudents;
+  const danRevTotal = totalApps * pricePerAppTl;
   const danCstTotal = payMode === "wage"
     ? numConsultants * consultantWage * 12
     : Math.round(danRevTotal * commissionPct / 100);
@@ -326,7 +327,7 @@ export default function App() {
               style={{ flex: 1, accentColor: "#ec4899", cursor: "pointer", height: 6 }} />
             <span style={{ fontSize: 24, fontWeight: 700, color: "#ec4899", minWidth: 36, textAlign: "center" }}>{numApps}</span>
           </div>
-          <div style={{ fontSize: 10, color: "#7d8590", marginTop: 4 }}>Danışmanlık başvurusu</div>
+          <div style={{ fontSize: 10, color: "#7d8590", marginTop: 4 }}>Öğrenci başı başvuru · Toplam: <span style={{ color:"#ec4899" }}>{totalApps}</span></div>
         </div>
         <div style={{ ...S.card, padding: 16 }}>
           <div style={S.label}>Başvuru Fiyatı ($)</div>
@@ -407,7 +408,7 @@ export default function App() {
           <div style={S.label}>Danışmanlık Geliri</div>
           <div style={{ fontSize: 22, fontWeight: 700, color: "#ec4899" }}>₺{fmt(danRevTotal)}</div>
           <div style={{ fontSize: 10, color: "#7d8590", marginTop: 2 }}>
-            {numApps} başvuru × ${fmt(pricePerAppUsd)} × ₺{usdTry} = ₺{fmt(danRevTotal)}
+            {totalApps} başvuru ({numApps} × {numStudents} öğr.) × ${fmt(pricePerAppUsd)} × ₺{usdTry} = ₺{fmt(danRevTotal)}
           </div>
         </div>
         <div style={{ ...S.card, padding: 16, display: "flex", flexDirection: "column", justifyContent: "center" }}>
