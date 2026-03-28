@@ -85,9 +85,11 @@ export default function App() {
   const [numApps, setNumApps] = useState(5);
   const [pricePerAppUsd, setPricePerAppUsd] = useState(700);
   const [usdTry, setUsdTry] = useState(38);
-  const [rateStatus, setRateStatus] = useState("loading"); // "loading" | "live" | "manual"
+  const [rateStatus, setRateStatus] = useState("loading");
   const [numConsultants, setNumConsultants] = useState(1);
   const [consultantWage, setConsultantWage] = useState(30000);
+  const [payMode, setPayMode] = useState("wage"); // "wage" | "commission"
+  const [commissionPct, setCommissionPct] = useState(20);
   // Manager
   const [managerWage, setManagerWage] = useState(50000);
 
@@ -121,7 +123,9 @@ export default function App() {
   // Danışmanlık calculations
   const pricePerAppTl = Math.round(pricePerAppUsd * usdTry);
   const danRevTotal = numApps * pricePerAppTl;
-  const danCstTotal = numConsultants * consultantWage * 12;
+  const danCstTotal = payMode === "wage"
+    ? numConsultants * consultantWage * 12
+    : Math.round(danRevTotal * commissionPct / 100);
   const danMargin = danRevTotal - danCstTotal;
 
   // Manager annual cost
@@ -313,7 +317,7 @@ export default function App() {
       </div>
 
       {/* ── Danışmanlık Controls ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr", gap: 14, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 14 }}>
         <div style={{ ...S.card, padding: 16 }}>
           <div style={S.label}>Başvuru Sayısı</div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -332,16 +336,6 @@ export default function App() {
           </div>
         </div>
         <div style={{ ...S.card, padding: 16 }}>
-          <div style={S.label}>Danışman Sayısı</div>
-          <input type="number" min={0} value={numConsultants} onChange={e => setNumConsultants(+e.target.value)} style={{ ...S.input, fontSize: 16 }} />
-          <div style={{ fontSize: 10, color: "#7d8590", marginTop: 4 }}>Tam zamanlı danışman</div>
-        </div>
-        <div style={{ ...S.card, padding: 16 }}>
-          <div style={S.label}>Danışman Aylık Maaş (₺)</div>
-          <input type="number" value={consultantWage} onChange={e => setConsultantWage(+e.target.value)} style={{ ...S.input, fontSize: 16 }} />
-          <div style={{ fontSize: 10, color: "#7d8590", marginTop: 4 }}>Kişi başı aylık</div>
-        </div>
-        <div style={{ ...S.card, padding: 16 }}>
           <div style={S.label}>
             Kur ($/₺)
             {rateStatus === "live" && <span style={{ marginLeft: 6, color: "#00d4aa", fontSize: 8, fontWeight: 700 }}>● CANLI</span>}
@@ -349,10 +343,62 @@ export default function App() {
             {rateStatus === "manual" && <span style={{ marginLeft: 6, color: "#7d8590", fontSize: 8 }}>● MANUEL</span>}
           </div>
           <input type="number" step="0.01" value={usdTry} onChange={e => { setUsdTry(+e.target.value); setRateStatus("manual"); }} style={{ ...S.input, fontSize: 16 }} />
-          <div style={{ fontSize: 10, color: "#7d8590", marginTop: 4 }}>
-            $1 = ₺{usdTry}
+          <div style={{ fontSize: 10, color: "#7d8590", marginTop: 4 }}>$1 = ₺{usdTry}</div>
+        </div>
+      </div>
+
+      {/* ── Danışman Ödeme Modeli ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "auto 1fr 1fr", gap: 14, marginBottom: 20 }}>
+        {/* Toggle */}
+        <div style={{ ...S.card, padding: 16, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+          <div style={S.label}>Ödeme Modeli</div>
+          <div style={{ display: "flex", gap: 0, marginTop: 6 }}>
+            <button onClick={() => setPayMode("wage")} style={{
+              padding: "6px 14px", fontSize: 11, fontWeight: 600, cursor: "pointer", border: "1px solid #30363d",
+              borderRadius: "6px 0 0 6px", fontFamily: "inherit",
+              background: payMode === "wage" ? "#ec4899" : "transparent",
+              color: payMode === "wage" ? "#fff" : "#7d8590",
+            }}>Maaş</button>
+            <button onClick={() => setPayMode("commission")} style={{
+              padding: "6px 14px", fontSize: 11, fontWeight: 600, cursor: "pointer", border: "1px solid #30363d",
+              borderRadius: "0 6px 6px 0", borderLeft: "none", fontFamily: "inherit",
+              background: payMode === "commission" ? "#ec4899" : "transparent",
+              color: payMode === "commission" ? "#fff" : "#7d8590",
+            }}>Komisyon</button>
           </div>
         </div>
+
+        {payMode === "wage" ? (
+          <>
+            <div style={{ ...S.card, padding: 16 }}>
+              <div style={S.label}>Danışman Sayısı</div>
+              <input type="number" min={0} value={numConsultants} onChange={e => setNumConsultants(+e.target.value)} style={{ ...S.input, fontSize: 16 }} />
+              <div style={{ fontSize: 10, color: "#7d8590", marginTop: 4 }}>Tam zamanlı danışman</div>
+            </div>
+            <div style={{ ...S.card, padding: 16 }}>
+              <div style={S.label}>Danışman Aylık Maaş (₺)</div>
+              <input type="number" value={consultantWage} onChange={e => setConsultantWage(+e.target.value)} style={{ ...S.input, fontSize: 16 }} />
+              <div style={{ fontSize: 10, color: "#7d8590", marginTop: 4 }}>
+                Yıllık: ₺{fmt(numConsultants * consultantWage * 12)} ({numConsultants} kişi)
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{ ...S.card, padding: 16, gridColumn: "span 2" }}>
+              <div style={S.label}>Komisyon Oranı</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                <input type="range" min={1} max={50} value={commissionPct}
+                  onChange={e => setCommissionPct(+e.target.value)}
+                  style={{ flex: 1, accentColor: "#ec4899", cursor: "pointer", height: 6 }} />
+                <span style={{ fontSize: 28, fontWeight: 700, color: "#ec4899", minWidth: 60, textAlign: "center" }}>%{commissionPct}</span>
+              </div>
+              <div style={{ fontSize: 10, color: "#7d8590", marginTop: 4 }}>
+                Danışmanlık gelirinin %{commissionPct}'i = ₺{fmt(danCstTotal)}
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* ── Danışmanlık Summary ── */}
@@ -365,10 +411,13 @@ export default function App() {
           </div>
         </div>
         <div style={{ ...S.card, padding: 16, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-          <div style={S.label}>Danışman Gideri</div>
+          <div style={S.label}>Danışman Gideri <span style={{ color: payMode === "commission" ? "#ec4899" : "#7d8590", fontSize: 8 }}>({payMode === "wage" ? "MAAŞ" : "KOMİSYON"})</span></div>
           <div style={{ fontSize: 22, fontWeight: 700, color: "#ef4444" }}>₺{fmt(danCstTotal)}</div>
           <div style={{ fontSize: 10, color: "#7d8590", marginTop: 2 }}>
-            {numConsultants} kişi × ₺{fmt(consultantWage)} × 12 ay
+            {payMode === "wage"
+              ? `${numConsultants} kişi × ₺${fmt(consultantWage)} × 12 ay`
+              : `%${commissionPct} × ₺${fmt(danRevTotal)}`
+            }
           </div>
         </div>
         <div style={{ ...S.card, padding: 16, display: "flex", flexDirection: "column", justifyContent: "center" }}>
