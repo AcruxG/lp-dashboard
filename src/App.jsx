@@ -39,8 +39,8 @@ const AVG_REV = Math.round(ALL_COURSES.reduce((s, c) => s + c.rev, 0) / ALL_COUR
 const AVG_CST = Math.round(ALL_COURSES.reduce((s, c) => s + c.cst, 0) / ALL_COURSES.length);
 const AVG_MARGIN = AVG_REV - AVG_CST;
 
-const CAT_COLORS = { AP: "#037A7A", "A-Level": "#1A5369", Oxbridge: "#14465B", Sınav: "#048C8C" };
-const LINE_COLORS = ["#048C8C", "#1A5369", "#02A6A6", "#F25C5C", "#037A7A", "#026E6E", "#038C8C", "#14465B"];
+const CAT_COLORS = { AP: "#3b82f6", "A-Level": "#8b5cf6", Oxbridge: "#00d4aa", Sınav: "#f59e0b" };
+const LINE_COLORS = ["#00d4aa", "#f59e0b", "#7c3aed", "#ef4444", "#3b82f6", "#ec4899", "#14b8a6", "#f97316"];
 
 const fmt = v => new Intl.NumberFormat("tr-TR").format(Math.round(v));
 const fmtK = v => v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M` : v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(Math.round(v));
