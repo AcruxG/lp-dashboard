@@ -1,4 +1,5 @@
 import { HashRouter, Routes, Route, Link, useLocation } from "react-router-dom";
+import { AppProvider } from "./AppContext";
 import YearlyModel from "./YearlyModel";
 import MonthlyModel from "./MonthlyModel";
 
@@ -38,12 +39,14 @@ const Navigation = () => {
 
 export default function App() {
   return (
-    <HashRouter>
-      <Navigation />
-      <Routes>
-        <Route path="/" element={<YearlyModel />} />
-        <Route path="/aylık" element={<MonthlyModel />} />
-      </Routes>
-    </HashRouter>
+    <AppProvider>
+      <HashRouter>
+        <Navigation />
+        <Routes>
+          <Route path="/" element={<YearlyModel />} />
+          <Route path="/aylık" element={<MonthlyModel />} />
+        </Routes>
+      </HashRouter>
+    </AppProvider>
   );
 }
