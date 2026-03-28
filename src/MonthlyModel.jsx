@@ -18,7 +18,7 @@ export default function MonthlyModel() {
   const {
     numCourses, numStudents, hours, pricePerHour, discount, tutorCostPerHour,
     numApps, pricePerAppUsd, usdTry, numConsultants, consultantWage, payMode, commissionPct,
-    managerWage, totalMonthlyFc, totalAnnualOneOffFc
+    managerWage, totalMonthlyFc, totalAnnualOneOffFc, fcKurulus, fcDamga, fcIto, fcNoter
   } = useAppContext();
 
   const chartData = useMemo(() => {
@@ -52,8 +52,15 @@ export default function MonthlyModel() {
     for (let m = 1; m <= 12; m++) {
       const mnthRev = monthlyRev;
       
-      // Expenses: Variable Costs + Manager Wage + Monthly Fixed Costs + (Month 1 gets all Annual One-Off FCs)
-      const specificMonthlyFc = totalMonthlyFc + (m === 1 ? totalAnnualOneOffFc : 0);
+      // Determine specific one-off costs for this particular month
+      let currentMonthOneOff = 0;
+      if (m === 1) currentMonthOneOff += fcKurulus; // Jan
+      if (m === 2 || m === 5 || m === 8) currentMonthOneOff += fcDamga / 3; // Feb, May, Aug
+      if (m === 6 || m === 10) currentMonthOneOff += fcIto / 2; // Jun, Oct
+      if (m === 5 || m === 11) currentMonthOneOff += fcNoter / 2; // May, Nov
+      
+      // Expenses: Variable Costs + Manager Wage + Monthly Fixed Costs + Month-specific One-Off Costs
+      const specificMonthlyFc = totalMonthlyFc + currentMonthOneOff;
       const mnthCst = monthlyVarCst + monthlyManager + specificMonthlyFc;
       
       const kdv = mnthRev * 20 / 120;

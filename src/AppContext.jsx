@@ -24,18 +24,18 @@ export const AppProvider = ({ children }) => {
   const [managerWage, setManagerWage] = useState(50000);
 
   // Detailed Fixed Costs
-  const [fcKira, setFcKira] = useState(20000);
-  const [fcKiraStopaj, setFcKiraStopaj] = useState(5000);
-  const [fcDamga, setFcDamga] = useState(2400); // One-off / Annual
-  const [fcSmmm, setFcSmmm] = useState(3000);
-  const [fcSmmmStopaj, setFcSmmmStopaj] = useState(600);
-  const [fcIto, setFcIto] = useState(1500); // One-off / Annual
-  const [fcNoter, setFcNoter] = useState(3000); // One-off / Annual
-  const [fcWeb, setFcWeb] = useState(1000);
-  const [fcY, setFcY] = useState(2000);
+  const [fcKira, setFcKira] = useState(0);
+  const [fcKiraStopaj, setFcKiraStopaj] = useState(0);
+  const [fcDamga, setFcDamga] = useState(1872); // One-off / Annual
+  const [fcSmmm, setFcSmmm] = useState(5704);
+  const [fcSmmmStopaj, setFcSmmmStopaj] = useState(0);
+  const [fcIto, setFcIto] = useState(5220); // One-off / Annual
+  const [fcNoter, setFcNoter] = useState(988); // One-off / Annual
+  const [fcWeb, setFcWeb] = useState(600);
+  const [fcY, setFcY] = useState(0);
   const [fcKredi, setFcKredi] = useState(0);
-  const [fcKurulus, setFcKurulus] = useState(15000); // One-off / Annual
-  const [fcBagkur, setFcBagkur] = useState(6000);
+  const [fcKurulus, setFcKurulus] = useState(14990); // One-off / Annual
+  const [fcBagkur, setFcBagkur] = useState(1808);
 
   useEffect(() => {
     fetch("https://api.exchangerate-api.com/v4/latest/USD")
