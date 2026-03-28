@@ -148,10 +148,24 @@ export default function App() {
   const corpTax = preTaxProfit > 0 ? preTaxProfit * 0.25 : 0;
   const netProfit = preTaxProfit - corpTax;
 
-  // Break-even (for course-only, simplified)
-  const netMarginPerStu = margPerStu - (revPerStu * 20 / 120);
-  const fixedTotal = fc + danCstTotal + managerAnnual - danRevTotal + (danRevTotal * 20 / 120);
-  const breakEvenN = netMarginPerStu > 0 ? Math.ceil(Math.max(0, fixedTotal) / (netMarginPerStu * 0.75)) : Infinity;
+  // Break-even calculation
+  // Per-student revenue = courses + danışmanlık (numApps per student)
+  const danRevPerStu = numApps * pricePerAppTl;
+  const combinedRevPerStu = revPerStu + danRevPerStu;
+  // Per-student variable cost
+  const danVarCstPerStu = payMode === "commission"
+    ? Math.round(danRevPerStu * commissionPct / 100)
+    : 0;
+  const combinedVarCstPerStu = cstPerStu + danVarCstPerStu;
+  // Per-student KDV
+  const kdvPerStu = combinedRevPerStu * 20 / 120;
+  // Per-student net margin (before fixed costs & corp tax)
+  const perStuNetMargin = combinedRevPerStu - combinedVarCstPerStu - kdvPerStu;
+  // Fixed costs (don't scale with students)
+  const fixedCosts = fc + managerAnnual + (payMode === "wage" ? numConsultants * consultantWage * 12 : 0);
+  // Break-even: n * perStuNetMargin * 0.75 = fixedCosts * 0.75 → n = fixedCosts / perStuNetMargin
+  // (0.75 factor from corp tax cancels out, break-even is where preTaxProfit = 0)
+  const breakEvenN = perStuNetMargin > 0 ? Math.ceil(fixedCosts / perStuNetMargin) : Infinity;
   const grossPct = revPerStu > 0 ? (margPerStu / revPerStu * 100) : 0;
 
   // Chart: profit vs students for different course counts (1..8)
