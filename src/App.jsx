@@ -39,31 +39,31 @@ const AVG_REV = Math.round(ALL_COURSES.reduce((s, c) => s + c.rev, 0) / ALL_COUR
 const AVG_CST = Math.round(ALL_COURSES.reduce((s, c) => s + c.cst, 0) / ALL_COURSES.length);
 const AVG_MARGIN = AVG_REV - AVG_CST;
 
-const CAT_COLORS = { AP: "#037A7A", "A-Level": "#035959", Oxbridge: "#035159", Sınav: "#048C8C" };
-const LINE_COLORS = ["#048C8C", "#035959", "#02A6A6", "#F25C5C", "#037A7A", "#026E6E", "#038C8C", "#035159"];
+const CAT_COLORS = { AP: "#037A7A", "A-Level": "#1A5369", Oxbridge: "#14465B", Sınav: "#048C8C" };
+const LINE_COLORS = ["#048C8C", "#1A5369", "#02A6A6", "#F25C5C", "#037A7A", "#026E6E", "#038C8C", "#14465B"];
 
 const fmt = v => new Intl.NumberFormat("tr-TR").format(Math.round(v));
 const fmtK = v => v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M` : v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(Math.round(v));
 
 // ── Styles ───────────────────────────────────────────────────────────────────
 const S = {
-  page: { background: "#01161E", color: "#e6edf3", minHeight: "100vh", fontFamily: "'IBM Plex Mono', 'Cascadia Code', monospace", padding: "28px 32px" },
-  card: { background: "#023440", border: "1px solid #035159", borderRadius: 10 },
-  label: { fontSize: 10, color: "#8AB0B0", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 },
+  page: { background: "#060A0D", color: "#FFFFFF", minHeight: "100vh", fontFamily: "'IBM Plex Mono', 'Cascadia Code', monospace", padding: "28px 32px" },
+  card: { background: "#0B202B", border: "1px solid #14465B", borderRadius: 10 },
+  label: { fontSize: 10, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 },
   tag: bg => ({ fontSize: 10, padding: "2px 8px", borderRadius: 12, background: `${bg}22`, color: bg, display: "inline-block" }),
   input: {
-    width: "100%", background: "transparent", border: "none", borderBottom: "1px solid #035159",
-    color: "#e6edf3", fontSize: 20, fontWeight: 700, outline: "none", fontFamily: "inherit", padding: "6px 0"
+    width: "100%", background: "transparent", border: "none", borderBottom: "1px solid #14465B",
+    color: "#FFFFFF", fontSize: 20, fontWeight: 700, outline: "none", fontFamily: "inherit", padding: "6px 0"
   },
-  sectionTitle: { display: "flex", alignItems: "center", gap: 10, fontSize: 18, fontWeight: 700, color: "#e6edf3", marginBottom: 16, marginTop: 40, borderBottom: "1px solid #035159", paddingBottom: 10 },
+  sectionTitle: { display: "flex", alignItems: "center", gap: 10, fontSize: 18, fontWeight: 700, color: "#FFFFFF", marginBottom: 16, marginTop: 40, borderBottom: "1px solid #14465B", paddingBottom: 10 },
 };
 
 // ── Custom Tooltip ───────────────────────────────────────────────────────────
 const ChartTip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div style={{ background: "#01161E", border: "1px solid #035159", borderRadius: 8, padding: "10px 14px" }}>
-      <div style={{ color: "#8AB0B0", fontSize: 11, marginBottom: 6 }}>{label} öğrenci</div>
+    <div style={{ background: "#060A0D", border: "1px solid #14465B", borderRadius: 8, padding: "10px 14px" }}>
+      <div style={{ color: "#94A3B8", fontSize: 11, marginBottom: 6 }}>{label} öğrenci</div>
       {payload.map(p => (
         <div key={p.name} style={{ color: p.color, fontSize: 11 }}>
           {p.name}: <b>₺{fmt(p.value)}</b>
@@ -73,16 +73,29 @@ const ChartTip = ({ active, payload, label }) => {
   );
 };
 
-const PieChartTip = ({ active, payload }) => {
+const PieChartTip = ({ active, payload, total }) => {
   if (!active || !payload?.length) return null;
   const p = payload[0].payload;
+  const pct = total ? ((p.value / total) * 100).toFixed(1) : 0;
   return (
-    <div style={{ background: "#01161E", border: "1px solid #035159", borderRadius: 8, padding: "10px 14px", zIndex: 100 }}>
-      <div style={{ color: p.color, fontSize: 11, fontWeight: 700 }}>{p.name}</div>
-      <div style={{ color: "#e6edf3", fontSize: 12, marginTop: 4 }}>
-        ₺{fmt(p.value)}
+    <div style={{ background: "#060A0D", border: "1px solid #14465B", borderRadius: 8, padding: "10px 14px", zIndex: 100 }}>
+      <div style={{ color: p.color ?? p.fill, fontSize: 11, fontWeight: 700 }}>{p.name}</div>
+      <div style={{ color: "#FFFFFF", fontSize: 13, marginTop: 4 }}>
+        ₺{fmt(p.value)} <span style={{ fontSize: 10, color: "#94A3B8" }}>({pct}%)</span>
       </div>
     </div>
+  );
+};
+
+const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }) => {
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+  const x = cx + radius * Math.cos(-midAngle * Math.PI / 180);
+  const y = cy + radius * Math.sin(-midAngle * Math.PI / 180);
+  if (percent < 0.05) return null;
+  return (
+    <text x={x} y={y} fill="#111" fontSize={10} fontWeight="bold" textAnchor="middle" dominantBaseline="central">
+      {`${(percent * 100).toFixed(0)}%`}
+    </text>
   );
 };
 
@@ -235,18 +248,18 @@ export default function App() {
   });
 
   const gelirData = [
-    { name: "Kurs Geliri", value: courseRevTotal, color: "#037A7A" },
-    { name: "Danışmanlık Geliri", value: danRevTotal, color: "#02A6A6" }
+    { name: "Kurs Geliri", value: courseRevTotal, color: "#048C8C" },
+    { name: "Danışmanlık Geliri", value: danRevTotal, color: "#38BDF8" }
   ].filter(d => d.value > 0);
 
   const giderData = [
-    { name: "Kurs Eğitmen Gideri", value: courseCstTotal, color: "#8b5cf6" },
-    { name: "Danışman Gideri", value: danCstTotal, color: "#02A6A6" },
-    { name: "Yönetici Maaşı", value: managerAnnual, color: "#038C8C" },
-    { name: "Diğer Sabit Gider (FC)", value: fc, color: "#F25C5C" },
-    { name: "KDV (%20)", value: totalKdv, color: "#026E6E" }
+    { name: "Kurs Eğitmen Gideri", value: courseCstTotal, color: "#F472B6" },
+    { name: "Danışman Gideri", value: danCstTotal, color: "#38BDF8" },
+    { name: "Yönetici Maaşı", value: managerAnnual, color: "#34D399" },
+    { name: "Diğer Sabit Gider (FC)", value: fc, color: "#FB7185" },
+    { name: "KDV (%20)", value: totalKdv, color: "#FBBF24" }
   ].filter(d => d.value > 0);
-  if (corpTax > 0) giderData.push({ name: "Kurumlar Vergisi (%25)", value: corpTax, color: "#eab308" });
+  if (corpTax > 0) giderData.push({ name: "Kurumlar Vergisi (%25)", value: corpTax, color: "#A78BFA" });
 
   return (
     <div style={S.page}>
@@ -258,7 +271,7 @@ export default function App() {
             <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, letterSpacing: "-0.5px" }}>
               Study Surfer — Kâr Simülatörü
             </h1>
-            <div style={{ fontSize: 11, color: "#8AB0B0", marginTop: 2 }}>
+            <div style={{ fontSize: 11, color: "#94A3B8", marginTop: 2 }}>
               Kurs Sayısı × Öğrenci Sayısı → Net Kâr · Ortalama Kurs Fiyatı Bazlı
             </div>
           </div>
@@ -276,10 +289,10 @@ export default function App() {
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <input type="range" min={1} max={50} value={numStudents}
               onChange={e => setNumStudents(+e.target.value)}
-              style={{ flex: 1, accentColor: "#035959", cursor: "pointer", height: 6 }} />
-            <span style={{ fontSize: 40, fontWeight: 700, color: "#035959", minWidth: 48, textAlign: "center" }}>{numStudents}</span>
+              style={{ flex: 1, accentColor: "#1A5369", cursor: "pointer", height: 6 }} />
+            <span style={{ fontSize: 40, fontWeight: 700, color: "#1A5369", minWidth: 48, textAlign: "center" }}>{numStudents}</span>
           </div>
-          <div style={{ fontSize: 10, color: "#8AB0B0", marginTop: 8 }}>
+          <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 8 }}>
             Başa baş noktası: <span style={{ color: numStudents >= breakEvenN ? "#048C8C" : "#F25C5C" }}>
               {breakEvenN === Infinity ? "∞" : `${breakEvenN} öğrenci`}
             </span>
@@ -290,15 +303,15 @@ export default function App() {
         <div style={{ ...S.card, padding: 20 }}>
           <div style={S.label}>Diğer Sabit Gider — FC (₺)</div>
           <input type="number" value={fc} onChange={e => setFc(+e.target.value)} style={S.input} />
-          <div style={{ fontSize: 10, color: "#8AB0B0", marginTop: 8 }}>İşletme sabit giderleri (kira, vb.)</div>
+          <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 8 }}>İşletme sabit giderleri (kira, vb.)</div>
         </div>
 
         {/* Manager wage */}
         <div style={{ ...S.card, padding: 20 }}>
           <div style={S.label}>Yönetici Aylık Maaş (₺)</div>
           <input type="number" value={managerWage} onChange={e => setManagerWage(+e.target.value)} style={S.input} />
-          <div style={{ fontSize: 10, color: "#8AB0B0", marginTop: 8 }}>
-            Yıllık: <span style={{ color: "#e6edf3" }}>₺{fmt(managerAnnual)}</span>
+          <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 8 }}>
+            Yıllık: <span style={{ color: "#FFFFFF" }}>₺{fmt(managerAnnual)}</span>
           </div>
         </div>
       </div>
@@ -317,8 +330,8 @@ export default function App() {
               style={{ flex: 1, accentColor: "#048C8C", cursor: "pointer", height: 6 }} />
             <span style={{ fontSize: 40, fontWeight: 700, color: "#048C8C", minWidth: 48, textAlign: "center" }}>{numCourses}</span>
           </div>
-          <div style={{ fontSize: 10, color: "#8AB0B0", marginTop: 8 }}>
-            <span style={{ color: "#e6edf3" }}>{numCourses}</span> kurs × ₺{fmt(avgRev)} ort. fiyat = <span style={{ color: "#037A7A" }}>₺{fmt(revPerStu)}</span> / öğrenci
+          <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 8 }}>
+            <span style={{ color: "#FFFFFF" }}>{numCourses}</span> kurs × ₺{fmt(avgRev)} ort. fiyat = <span style={{ color: "#037A7A" }}>₺{fmt(revPerStu)}</span> / öğrenci
           </div>
         </div>
       </div>
@@ -327,27 +340,27 @@ export default function App() {
         <div style={{ ...S.card, padding: 16 }}>
           <div style={S.label}>Ders Saati (saat)</div>
           <input type="number" value={hours} onChange={e => setHours(+e.target.value)} style={{ ...S.input, fontSize: 16 }} />
-          <div style={{ fontSize: 10, color: "#8AB0B0", marginTop: 4 }}>Kurs başına toplam saat</div>
+          <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 4 }}>Kurs başına toplam saat</div>
         </div>
         <div style={{ ...S.card, padding: 16 }}>
           <div style={S.label}>Saat Fiyatı (₺)</div>
           <input type="number" value={pricePerHour} onChange={e => setPricePerHour(+e.target.value)} style={{ ...S.input, fontSize: 16 }} />
-          <div style={{ fontSize: 10, color: "#8AB0B0", marginTop: 4 }}>Öğrenciye satış fiyatı</div>
+          <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 4 }}>Öğrenciye satış fiyatı</div>
         </div>
         <div style={{ ...S.card, padding: 16 }}>
           <div style={S.label}>İndirim (%)</div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <input type="range" min={0} max={50} value={discount}
               onChange={e => setDiscount(+e.target.value)}
-              style={{ flex: 1, accentColor: "#035959", cursor: "pointer", height: 6 }} />
-            <span style={{ fontSize: 20, fontWeight: 700, color: "#035959", minWidth: 40, textAlign: "center" }}>%{discount}</span>
+              style={{ flex: 1, accentColor: "#1A5369", cursor: "pointer", height: 6 }} />
+            <span style={{ fontSize: 20, fontWeight: 700, color: "#1A5369", minWidth: 40, textAlign: "center" }}>%{discount}</span>
           </div>
-          <div style={{ fontSize: 10, color: "#8AB0B0", marginTop: 4 }}>Paket indirimi</div>
+          <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 4 }}>Paket indirimi</div>
         </div>
         <div style={{ ...S.card, padding: 16 }}>
           <div style={S.label}>Eğitmen Saat Ücreti (₺)</div>
           <input type="number" value={tutorCostPerHour} onChange={e => setTutorCostPerHour(+e.target.value)} style={{ ...S.input, fontSize: 16 }} />
-          <div style={{ fontSize: 10, color: "#8AB0B0", marginTop: 4 }}>Eğitmene ödenen saat başı</div>
+          <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 4 }}>Eğitmene ödenen saat başı</div>
         </div>
       </div>
 
@@ -356,21 +369,21 @@ export default function App() {
         <div style={{ ...S.card, padding: 16, display: "flex", flexDirection: "column", justifyContent: "center" }}>
           <div style={S.label}>Ort. Kurs Geliri</div>
           <div style={{ fontSize: 22, fontWeight: 700, color: "#037A7A" }}>₺{fmt(avgRev)}</div>
-          <div style={{ fontSize: 10, color: "#8AB0B0", marginTop: 2 }}>
+          <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 2 }}>
             {hours} saat × ₺{fmt(pricePerHour)} × {(100 - discount)}% = ₺{fmt(avgRev)}
           </div>
         </div>
         <div style={{ ...S.card, padding: 16, display: "flex", flexDirection: "column", justifyContent: "center" }}>
           <div style={S.label}>Ort. Kurs Gideri</div>
           <div style={{ fontSize: 22, fontWeight: 700, color: "#F25C5C" }}>₺{fmt(avgCst)}</div>
-          <div style={{ fontSize: 10, color: "#8AB0B0", marginTop: 2 }}>
+          <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 2 }}>
             {hours} saat × ₺{fmt(tutorCostPerHour)} = ₺{fmt(avgCst)}
           </div>
         </div>
         <div style={{ ...S.card, padding: 16, display: "flex", flexDirection: "column", justifyContent: "center" }}>
           <div style={S.label}>Ort. Kurs Marjini</div>
           <div style={{ fontSize: 22, fontWeight: 700, color: "#048C8C" }}>₺{fmt(avgMargin)}</div>
-          <div style={{ fontSize: 10, color: "#8AB0B0", marginTop: 2 }}>
+          <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 2 }}>
             Marjin oranı: <span style={{ color: "#048C8C" }}>{avgRev > 0 ? ((avgMargin / avgRev) * 100).toFixed(1) : 0}%</span>
           </div>
         </div>
@@ -389,12 +402,12 @@ export default function App() {
               style={{ flex: 1, accentColor: "#02A6A6", cursor: "pointer", height: 6 }} />
             <span style={{ fontSize: 24, fontWeight: 700, color: "#02A6A6", minWidth: 36, textAlign: "center" }}>{numApps}</span>
           </div>
-          <div style={{ fontSize: 10, color: "#8AB0B0", marginTop: 4 }}>Öğrenci başı başvuru · Toplam: <span style={{ color:"#02A6A6" }}>{totalApps}</span></div>
+          <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 4 }}>Öğrenci başı başvuru · Toplam: <span style={{ color:"#02A6A6" }}>{totalApps}</span></div>
         </div>
         <div style={{ ...S.card, padding: 16 }}>
           <div style={S.label}>Başvuru Fiyatı ($)</div>
           <input type="number" value={pricePerAppUsd} onChange={e => setPricePerAppUsd(+e.target.value)} style={{ ...S.input, fontSize: 16 }} />
-          <div style={{ fontSize: 10, color: "#8AB0B0", marginTop: 4 }}>
+          <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 4 }}>
             = ₺{fmt(pricePerAppTl)} <span style={{ color:"#048C8C" }}>($1 = ₺{usdTry})</span>
           </div>
         </div>
@@ -402,11 +415,11 @@ export default function App() {
           <div style={S.label}>
             Kur ($/₺)
             {rateStatus === "live" && <span style={{ marginLeft: 6, color: "#048C8C", fontSize: 8, fontWeight: 700 }}>● CANLI</span>}
-            {rateStatus === "loading" && <span style={{ marginLeft: 6, color: "#035959", fontSize: 8 }}>● YÜKLENİYOR</span>}
-            {rateStatus === "manual" && <span style={{ marginLeft: 6, color: "#8AB0B0", fontSize: 8 }}>● MANUEL</span>}
+            {rateStatus === "loading" && <span style={{ marginLeft: 6, color: "#1A5369", fontSize: 8 }}>● YÜKLENİYOR</span>}
+            {rateStatus === "manual" && <span style={{ marginLeft: 6, color: "#94A3B8", fontSize: 8 }}>● MANUEL</span>}
           </div>
           <input type="number" step="0.01" value={usdTry} onChange={e => { setUsdTry(+e.target.value); setRateStatus("manual"); }} style={{ ...S.input, fontSize: 16 }} />
-          <div style={{ fontSize: 10, color: "#8AB0B0", marginTop: 4 }}>$1 = ₺{usdTry}</div>
+          <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 4 }}>$1 = ₺{usdTry}</div>
         </div>
       </div>
 
@@ -415,16 +428,16 @@ export default function App() {
           <div style={S.label}>Ödeme Modeli</div>
           <div style={{ display: "flex", gap: 0, marginTop: 6 }}>
             <button onClick={() => setPayMode("wage")} style={{
-              padding: "6px 14px", fontSize: 11, fontWeight: 600, cursor: "pointer", border: "1px solid #035159",
+              padding: "6px 14px", fontSize: 11, fontWeight: 600, cursor: "pointer", border: "1px solid #14465B",
               borderRadius: "6px 0 0 6px", fontFamily: "inherit",
               background: payMode === "wage" ? "#02A6A6" : "transparent",
-              color: payMode === "wage" ? "#fff" : "#8AB0B0",
+              color: payMode === "wage" ? "#fff" : "#94A3B8",
             }}>Maaş</button>
             <button onClick={() => setPayMode("commission")} style={{
-              padding: "6px 14px", fontSize: 11, fontWeight: 600, cursor: "pointer", border: "1px solid #035159",
+              padding: "6px 14px", fontSize: 11, fontWeight: 600, cursor: "pointer", border: "1px solid #14465B",
               borderRadius: "0 6px 6px 0", borderLeft: "none", fontFamily: "inherit",
               background: payMode === "commission" ? "#02A6A6" : "transparent",
-              color: payMode === "commission" ? "#fff" : "#8AB0B0",
+              color: payMode === "commission" ? "#fff" : "#94A3B8",
             }}>Komisyon</button>
           </div>
         </div>
@@ -434,12 +447,12 @@ export default function App() {
             <div style={{ ...S.card, padding: 16 }}>
               <div style={S.label}>Danışman Sayısı</div>
               <input type="number" min={0} value={numConsultants} onChange={e => setNumConsultants(+e.target.value)} style={{ ...S.input, fontSize: 16 }} />
-              <div style={{ fontSize: 10, color: "#8AB0B0", marginTop: 4 }}>Tam zamanlı danışman</div>
+              <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 4 }}>Tam zamanlı danışman</div>
             </div>
             <div style={{ ...S.card, padding: 16 }}>
               <div style={S.label}>Danışman Aylık Maaş (₺)</div>
               <input type="number" value={consultantWage} onChange={e => setConsultantWage(+e.target.value)} style={{ ...S.input, fontSize: 16 }} />
-              <div style={{ fontSize: 10, color: "#8AB0B0", marginTop: 4 }}>
+              <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 4 }}>
                 Yıllık: ₺{fmt(numConsultants * consultantWage * 12)} ({numConsultants} kişi)
               </div>
             </div>
@@ -454,7 +467,7 @@ export default function App() {
                   style={{ flex: 1, accentColor: "#02A6A6", cursor: "pointer", height: 6 }} />
                 <span style={{ fontSize: 28, fontWeight: 700, color: "#02A6A6", minWidth: 60, textAlign: "center" }}>%{commissionPct}</span>
               </div>
-              <div style={{ fontSize: 10, color: "#8AB0B0", marginTop: 4 }}>
+              <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 4 }}>
                 Danışmanlık gelirinin %{commissionPct}'i = ₺{fmt(danCstTotal)}
               </div>
             </div>
@@ -466,14 +479,14 @@ export default function App() {
         <div style={{ ...S.card, padding: 16, display: "flex", flexDirection: "column", justifyContent: "center" }}>
           <div style={S.label}>Danışmanlık Geliri</div>
           <div style={{ fontSize: 22, fontWeight: 700, color: "#02A6A6" }}>₺{fmt(danRevTotal)}</div>
-          <div style={{ fontSize: 10, color: "#8AB0B0", marginTop: 2 }}>
+          <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 2 }}>
             {totalApps} başvuru ({numApps} × {numStudents} öğr.) × ${fmt(pricePerAppUsd)} × ₺{usdTry} = ₺{fmt(danRevTotal)}
           </div>
         </div>
         <div style={{ ...S.card, padding: 16, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-          <div style={S.label}>Danışman Gideri <span style={{ color: payMode === "commission" ? "#02A6A6" : "#8AB0B0", fontSize: 8 }}>({payMode === "wage" ? "MAAŞ" : "KOMİSYON"})</span></div>
+          <div style={S.label}>Danışman Gideri <span style={{ color: payMode === "commission" ? "#02A6A6" : "#94A3B8", fontSize: 8 }}>({payMode === "wage" ? "MAAŞ" : "KOMİSYON"})</span></div>
           <div style={{ fontSize: 22, fontWeight: 700, color: "#F25C5C" }}>₺{fmt(danCstTotal)}</div>
-          <div style={{ fontSize: 10, color: "#8AB0B0", marginTop: 2 }}>
+          <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 2 }}>
             {payMode === "wage"
               ? `${numConsultants} kişi × ₺${fmt(consultantWage)} × 12 ay`
               : `%${commissionPct} × ₺${fmt(danRevTotal)}`
@@ -483,7 +496,7 @@ export default function App() {
         <div style={{ ...S.card, padding: 16, display: "flex", flexDirection: "column", justifyContent: "center" }}>
           <div style={S.label}>Danışmanlık Marjini</div>
           <div style={{ fontSize: 22, fontWeight: 700, color: danMargin >= 0 ? "#048C8C" : "#F25C5C" }}>₺{fmt(danMargin)}</div>
-          <div style={{ fontSize: 10, color: "#8AB0B0", marginTop: 2 }}>
+          <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 2 }}>
             Gelir − Gider
           </div>
         </div>
@@ -499,7 +512,7 @@ export default function App() {
           { label: "Kurs Marjini / Öğr.", value: `₺${fmt(margPerStu)}`, color: "#048C8C" },
           { label: "Danışmanlık Geliri", value: `₺${fmt(danRevTotal)}`, color: "#02A6A6" },
           { label: "Yönetici + FC", value: `₺${fmt(managerAnnual + fc)}`, color: "#F25C5C" },
-          { label: "Başa Baş Noktası", value: breakEvenN === Infinity ? "∞" : `${breakEvenN} öğrenci`, color: numStudents >= breakEvenN ? "#048C8C" : "#035959" },
+          { label: "Başa Baş Noktası", value: breakEvenN === Infinity ? "∞" : `${breakEvenN} öğrenci`, color: numStudents >= breakEvenN ? "#048C8C" : "#1A5369" },
           { label: "Mevcut Durum", value: numStudents >= breakEvenN ? "KÂRDA ✓" : "ZARARDA ✗", color: numStudents >= breakEvenN ? "#048C8C" : "#F25C5C" },
         ].map(k => (
           <div key={k.label} style={{ ...S.card, padding: "14px 16px" }}>
@@ -512,20 +525,20 @@ export default function App() {
       <div style={{
         ...S.card, padding: "24px 32px", marginBottom: 20,
         background: netProfit >= 0
-          ? "linear-gradient(135deg, #048C8C10 0%, #023440 100%)"
-          : "linear-gradient(135deg, #F25C5C10 0%, #023440 100%)",
+          ? "linear-gradient(135deg, #048C8C10 0%, #0B202B 100%)"
+          : "linear-gradient(135deg, #F25C5C10 0%, #0B202B 100%)",
         borderColor: netProfit >= 0 ? "#048C8C33" : "#F25C5C33"
       }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 20, alignItems: "center" }}>
           <div>
             <div style={S.label}>Toplam Gelir</div>
             <div style={{ fontSize: 20, fontWeight: 700, color: "#037A7A" }}>₺{fmt(totalRev)}</div>
-            <div style={{ fontSize: 9, color: "#8AB0B0" }}>Kurs ₺{fmt(courseRevTotal)} + Dan. ₺{fmt(danRevTotal)}</div>
+            <div style={{ fontSize: 9, color: "#94A3B8" }}>Kurs ₺{fmt(courseRevTotal)} + Dan. ₺{fmt(danRevTotal)}</div>
           </div>
           <div>
             <div style={S.label}>Toplam Gider</div>
             <div style={{ fontSize: 20, fontWeight: 700, color: "#F25C5C" }}>₺{fmt(totalCst)}</div>
-            <div style={{ fontSize: 9, color: "#8AB0B0" }}>Kurs + Dan. + Yönetici</div>
+            <div style={{ fontSize: 9, color: "#94A3B8" }}>Kurs + Dan. + Yönetici</div>
           </div>
           <div>
             <div style={S.label}>KDV (%20)</div>
@@ -537,13 +550,13 @@ export default function App() {
           </div>
           <div>
             <div style={S.label}>Brüt Marjin</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: totalGross >= 0 ? "#e6edf3" : "#F25C5C" }}>₺{fmt(totalGross)}</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: totalGross >= 0 ? "#FFFFFF" : "#F25C5C" }}>₺{fmt(totalGross)}</div>
           </div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20, alignItems: "center", marginTop: 16, paddingTop: 16, borderTop: "1px solid #035159" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20, alignItems: "center", marginTop: 16, paddingTop: 16, borderTop: "1px solid #14465B" }}>
           <div>
             <div style={S.label}>Vergi Öncesi Kâr</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: preTaxProfit >= 0 ? "#e6edf3" : "#F25C5C" }}>₺{fmt(preTaxProfit)}</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: preTaxProfit >= 0 ? "#FFFFFF" : "#F25C5C" }}>₺{fmt(preTaxProfit)}</div>
           </div>
           <div>
             <div style={S.label}>Kurumlar Vergisi (%25)</div>
@@ -556,7 +569,7 @@ export default function App() {
             </div>
           </div>
         </div>
-        <div style={{ marginTop: 12, fontSize: 11, color: "#8AB0B0" }}>
+        <div style={{ marginTop: 12, fontSize: 11, color: "#94A3B8" }}>
           Gelir ₺{fmt(totalRev)} − Gider ₺{fmt(totalCst)} − FC ₺{fmt(totalFC)} − KDV ₺{fmt(totalKdv)} = VÖ ₺{fmt(preTaxProfit)}
           {preTaxProfit > 0 && <> − KV %25 ₺{fmt(corpTax)}</>}
           {" "}= <span style={{ color: netProfit >= 0 ? "#048C8C" : "#F25C5C", fontWeight: 700 }}>
@@ -575,14 +588,20 @@ export default function App() {
               <div key={d.name} style={S.tag(d.color)}>{d.name} (₺{fmtK(d.value)})</div>
             ))}
           </div>
-          <ResponsiveContainer width="100%" height={240}>
-            <PieChart>
-              <Pie data={gelirData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={90} stroke="none">
-                {gelirData.map((d, i) => <Cell key={i} fill={d.color} />)}
-              </Pie>
-              <Tooltip content={<PieChartTip />} />
-            </PieChart>
-          </ResponsiveContainer>
+          <div style={{ position: "relative", width: "100%", height: 260 }}>
+            <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", textAlign: "center", pointerEvents: "none" }}>
+              <div style={{ fontSize: 10, color: "#94A3B8" }}>Toplam Gelir</div>
+              <div style={{ fontSize: 15, fontWeight: "bold", color: "#FFFFFF" }}>₺{fmtK(totalRev)}</div>
+            </div>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={gelirData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={65} outerRadius={95} stroke="none" labelLine={false} label={renderCustomizedLabel}>
+                  {gelirData.map((d, i) => <Cell key={i} fill={d.color} />)}
+                </Pie>
+                <Tooltip content={<PieChartTip total={totalRev} />} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
         {/* Gider Dağılımı */}
@@ -593,14 +612,20 @@ export default function App() {
               <div key={d.name} style={S.tag(d.color)}>{d.name} (₺{fmtK(d.value)})</div>
             ))}
           </div>
-          <ResponsiveContainer width="100%" height={240}>
-            <PieChart>
-              <Pie data={giderData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={90} stroke="none">
-                {giderData.map((d, i) => <Cell key={i} fill={d.color} />)}
-              </Pie>
-              <Tooltip content={<PieChartTip />} />
-            </PieChart>
-          </ResponsiveContainer>
+          <div style={{ position: "relative", width: "100%", height: 260 }}>
+            <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", textAlign: "center", pointerEvents: "none" }}>
+              <div style={{ fontSize: 10, color: "#94A3B8" }}>Toplam Gider</div>
+              <div style={{ fontSize: 15, fontWeight: "bold", color: "#FFFFFF" }}>₺{fmtK(totalCst + totalKdv + corpTax)}</div>
+            </div>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={giderData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={65} outerRadius={95} stroke="none" labelLine={false} label={renderCustomizedLabel}>
+                  {giderData.map((d, i) => <Cell key={i} fill={d.color} />)}
+                </Pie>
+                <Tooltip content={<PieChartTip total={totalCst + totalKdv + corpTax} />} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </div>
 
@@ -614,21 +639,21 @@ export default function App() {
         <div style={{ ...S.card, padding: 20 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
             <div style={S.label}>Net Kâr vs Öğrenci Sayısı — Kurs Sayısı Karşılaştırması</div>
-            <div style={{ marginLeft: "auto", fontSize: 10, color: "#8AB0B0" }}>
+            <div style={{ marginLeft: "auto", fontSize: 10, color: "#94A3B8" }}>
               Aktif: <span style={{ color: "#048C8C" }}>{numCourses} kurs</span> (kalın çizgi)
             </div>
           </div>
           <ResponsiveContainer width="100%" height={320}>
             <LineChart data={chartData} margin={{ top: 5, right: 24, bottom: 16, left: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#035959" />
-              <XAxis dataKey="n" stroke="#8AB0B0" tick={{ fontSize: 10, fill: "#8AB0B0" }}
-                label={{ value: "Öğrenci Sayısı (n)", position: "insideBottom", offset: -8, fill: "#8AB0B0", fontSize: 10 }} />
-              <YAxis stroke="#8AB0B0" tick={{ fontSize: 10, fill: "#8AB0B0" }} tickFormatter={v => `₺${fmtK(v)}`} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#1A5369" />
+              <XAxis dataKey="n" stroke="#94A3B8" tick={{ fontSize: 10, fill: "#94A3B8" }}
+                label={{ value: "Öğrenci Sayısı (n)", position: "insideBottom", offset: -8, fill: "#94A3B8", fontSize: 10 }} />
+              <YAxis stroke="#94A3B8" tick={{ fontSize: 10, fill: "#94A3B8" }} tickFormatter={v => `₺${fmtK(v)}`} />
               <Tooltip content={<ChartTip />} />
               <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
-              <ReferenceLine y={0} stroke="#035959" strokeDasharray="5 5"
-                label={{ value: "Başa Baş", fill: "#035959", fontSize: 10, position: "insideTopLeft" }} />
-              <ReferenceLine x={numStudents} stroke="#03595944" strokeDasharray="3 3" />
+              <ReferenceLine y={0} stroke="#1A5369" strokeDasharray="5 5"
+                label={{ value: "Başa Baş", fill: "#1A5369", fontSize: 10, position: "insideTopLeft" }} />
+              <ReferenceLine x={numStudents} stroke="#1A536944" strokeDasharray="3 3" />
               {[1, 2, 3, 4, 5, 6, 7, 8].map((c, i) => (
                 <Line key={c} type="monotone" dataKey={`C${c}`} name={`${c} kurs`}
                   stroke={LINE_COLORS[i]} dot={false}
@@ -645,12 +670,12 @@ export default function App() {
             onClick={() => setTableExpanded(!tableExpanded)}
             style={{ 
               padding: "14px 18px", 
-              borderBottom: "1px solid #035159", 
+              borderBottom: "1px solid #14465B", 
               cursor: "pointer", 
               display: "flex", 
               justifyContent: "space-between", 
               alignItems: "center", 
-              background: tableExpanded ? "#03414D" : "transparent" 
+              background: tableExpanded ? "#133545" : "transparent" 
             }}
             title="Tabloyu Genişlet/Daralt"
           >
@@ -662,11 +687,11 @@ export default function App() {
           <div style={{ overflowY: "auto", maxHeight: tableExpanded ? "none" : "320px", display: "flex", flexDirection: "column" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11, flex: 1 }}>
               <thead style={{ zIndex: 10 }}>
-                <tr style={{ background: "#01161E", position: "sticky", top: 0 }}>
+                <tr style={{ background: "#060A0D", position: "sticky", top: 0 }}>
                   {["n", "Yıllık Gelir", "Brüt Kâr", "KDV", "Sabit Gider", "KV %25", "NET KÂR"].map(h => (
                     <th key={h} style={{
                       padding: "8px 12px", textAlign: "right",
-                      color: "#8AB0B0", fontWeight: 600, fontSize: 10, textTransform: "uppercase"
+                      color: "#94A3B8", fontWeight: 600, fontSize: 10, textTransform: "uppercase"
                     }}>{h}</th>
                   ))}
                 </tr>
@@ -674,16 +699,16 @@ export default function App() {
               <tbody>
                 {scenRows.map(row => (
                   <tr key={row.n} style={{
-                    borderBottom: "1px solid #035959",
-                    background: row.n === numStudents ? "#0359590a" : row.green ? "#048C8C06" : "transparent"
+                    borderBottom: "1px solid #1A5369",
+                    background: row.n === numStudents ? "#1A53690a" : row.green ? "#048C8C06" : "transparent"
                   }}>
-                    <td style={{ padding: "10px 12px", fontWeight: 700, color: "#e6edf3", textAlign: "right" }}>
+                    <td style={{ padding: "10px 12px", fontWeight: 700, color: "#FFFFFF", textAlign: "right" }}>
                       {row.n}
-                      {row.n === numStudents && <span style={{ color: "#035959", fontSize: 9 }}> ★</span>}
-                      {row.n === breakEvenN && <span style={{ color: "#035959", fontSize: 9 }}> BE</span>}
+                      {row.n === numStudents && <span style={{ color: "#1A5369", fontSize: 9 }}> ★</span>}
+                      {row.n === breakEvenN && <span style={{ color: "#1A5369", fontSize: 9 }}> BE</span>}
                     </td>
                     <td style={{ padding: "10px 12px", color: "#037A7A", textAlign: "right" }}>₺{fmt(row.rev)}</td>
-                    <td style={{ padding: "10px 12px", color: "#e6edf3", textAlign: "right" }}>₺{fmt(row.gross)}</td>
+                    <td style={{ padding: "10px 12px", color: "#FFFFFF", textAlign: "right" }}>₺{fmt(row.gross)}</td>
                     <td style={{ padding: "10px 12px", color: "#038C8C", textAlign: "right" }}>₺{fmt(row.kdv)}</td>
                     <td style={{ padding: "10px 12px", color: "#F25C5C", textAlign: "right" }}>₺{fmt(fc)}</td>
                     <td style={{ padding: "10px 12px", color: "#026E6E", textAlign: "right" }}>₺{fmt(row.tax)}</td>
@@ -699,7 +724,7 @@ export default function App() {
             </table>
 
             {/* Category breakdown */}
-            <div style={{ padding: "14px 18px", borderTop: "1px solid #035159", marginTop: "auto" }}>
+            <div style={{ padding: "14px 18px", borderTop: "1px solid #14465B", marginTop: "auto" }}>
               <div style={S.label}>Kategori Bazlı Ortalamalar</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
                 {Object.entries(catStats).map(([cat, st]) => (
@@ -714,7 +739,7 @@ export default function App() {
       </div>
 
       {/* Footer */}
-      <div style={{ marginTop: 16, color: "#8AB0B0", fontSize: 10, textAlign: "center", lineHeight: 1.8 }}>
+      <div style={{ marginTop: 16, color: "#94A3B8", fontSize: 10, textAlign: "center", lineHeight: 1.8 }}>
         Net Kâr = (Brüt Marjin − FC − KDV) × 0.75
         &nbsp;|&nbsp; KDV = Gelir × 20/120 · Kurumlar Vergisi = %25
         &nbsp;|&nbsp; Ort. Gelir: ₺{fmt(avgRev)} · Ort. Gider: ₺{fmt(avgCst)} · Ort. Marjin: ₺{fmt(avgMargin)}
