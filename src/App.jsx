@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ReferenceLine, ResponsiveContainer,
@@ -85,10 +85,30 @@ export default function App() {
   const [numApps, setNumApps] = useState(5);
   const [pricePerAppUsd, setPricePerAppUsd] = useState(1500);
   const [usdTry, setUsdTry] = useState(38);
+  const [rateStatus, setRateStatus] = useState("loading"); // "loading" | "live" | "manual"
   const [numConsultants, setNumConsultants] = useState(1);
   const [consultantWage, setConsultantWage] = useState(30000);
   // Manager
   const [managerWage, setManagerWage] = useState(50000);
+
+  // Fetch live USD/TRY rate
+  useEffect(() => {
+    const fetchRate = async () => {
+      try {
+        const res = await fetch("https://api.exchangerate-api.com/v4/latest/USD");
+        const data = await res.json();
+        if (data?.rates?.TRY) {
+          setUsdTry(Math.round(data.rates.TRY * 100) / 100);
+          setRateStatus("live");
+        } else {
+          setRateStatus("manual");
+        }
+      } catch {
+        setRateStatus("manual");
+      }
+    };
+    fetchRate();
+  }, []);
 
   // Course calculations
   const avgRev = Math.round(hours * pricePerHour * (1 - discount / 100));
@@ -322,9 +342,16 @@ export default function App() {
           <div style={{ fontSize: 10, color: "#7d8590", marginTop: 4 }}>Kişi başı aylık</div>
         </div>
         <div style={{ ...S.card, padding: 16 }}>
-          <div style={S.label}>Kur ($/₺)</div>
-          <input type="number" value={usdTry} onChange={e => setUsdTry(+e.target.value)} style={{ ...S.input, fontSize: 16 }} />
-          <div style={{ fontSize: 10, color: "#7d8590", marginTop: 4 }}>USD/TRY kuru</div>
+          <div style={S.label}>
+            Kur ($/₺)
+            {rateStatus === "live" && <span style={{ marginLeft: 6, color: "#00d4aa", fontSize: 8, fontWeight: 700 }}>● CANLI</span>}
+            {rateStatus === "loading" && <span style={{ marginLeft: 6, color: "#f59e0b", fontSize: 8 }}>● YÜKLENİYOR</span>}
+            {rateStatus === "manual" && <span style={{ marginLeft: 6, color: "#7d8590", fontSize: 8 }}>● MANUEL</span>}
+          </div>
+          <input type="number" step="0.01" value={usdTry} onChange={e => { setUsdTry(+e.target.value); setRateStatus("manual"); }} style={{ ...S.input, fontSize: 16 }} />
+          <div style={{ fontSize: 10, color: "#7d8590", marginTop: 4 }}>
+            $1 = ₺{usdTry}
+          </div>
         </div>
       </div>
 
