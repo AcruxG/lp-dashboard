@@ -77,13 +77,13 @@ export default function App() {
   const [numCourses, setNumCourses] = useState(3);
   const [numStudents, setNumStudents] = useState(10);
   const [fc, setFc] = useState(139252);
-  const [hours, setHours] = useState(30);
+  const [hours, setHours] = useState(40);
   const [pricePerHour, setPricePerHour] = useState(4000);
-  const [discount, setDiscount] = useState(22);
-  const [tutorCostPerHour, setTutorCostPerHour] = useState(2500);
+  const [discount, setDiscount] = useState(10);
+  const [tutorCostPerHour, setTutorCostPerHour] = useState(2000);
   // Danışmanlık (Consulting)
   const [numApps, setNumApps] = useState(5);
-  const [pricePerAppUsd, setPricePerAppUsd] = useState(1500);
+  const [pricePerAppUsd, setPricePerAppUsd] = useState(700);
   const [usdTry, setUsdTry] = useState(38);
   const [rateStatus, setRateStatus] = useState("loading"); // "loading" | "live" | "manual"
   const [numConsultants, setNumConsultants] = useState(1);
