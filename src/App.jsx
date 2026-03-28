@@ -238,9 +238,9 @@ export default function App() {
         </div>
       </div>
 
-      {/* ── 1. Genel Kurum Ayarları ── */}
+      {/* ── 1. Kurum Ayarları ── */}
       <div style={S.sectionTitle}>
-        <span style={{ fontSize: 22 }}>🏫</span> 1. Genel Kurum Ayarları
+        1. Kurum Ayarları
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 20 }}>
         {/* Number of students */}
@@ -278,7 +278,7 @@ export default function App() {
 
       {/* ── 2. Akademik Kurs Ayarları ── */}
       <div style={S.sectionTitle}>
-        <span style={{ fontSize: 22 }}>📚</span> 2. Akademik Kurs Ayarları
+        2. Akademik Kurs Ayarları
       </div>
       <div style={{ marginBottom: 14 }}>
         {/* Courses per student */}
@@ -351,7 +351,7 @@ export default function App() {
 
       {/* ── 3. Danışmanlık Ayarları ── */}
       <div style={S.sectionTitle}>
-        <span style={{ fontSize: 22 }}>🌍</span> 3. Danışmanlık Ayarları
+        3. Danışmanlık Ayarları
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 14 }}>
         <div style={{ ...S.card, padding: 16 }}>
@@ -464,7 +464,7 @@ export default function App() {
 
       {/* ── 4. Finansal Özet ── */}
       <div style={S.sectionTitle}>
-        <span style={{ fontSize: 22 }}>💰</span> 4. Finansal Özet
+        4. Finansal Özet
       </div>
       
       <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 14, marginBottom: 16 }}>
@@ -540,7 +540,7 @@ export default function App() {
 
       {/* ── 5. Senaryo Analizi ve Grafikler ── */}
       <div style={S.sectionTitle}>
-        <span style={{ fontSize: 22 }}>📈</span> 5. Senaryo Analizi ve Grafikler
+        5. Senaryo Analizi ve Grafikler
       </div>
       
       <div style={{ display: "grid", gridTemplateColumns: tableExpanded ? "1fr" : "1.5fr 1fr", gap: 16, marginBottom: 16 }}>
