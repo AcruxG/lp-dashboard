@@ -2,6 +2,7 @@ import { HashRouter, Routes, Route, Link, useLocation } from "react-router-dom";
 import { AppProvider } from "./AppContext";
 import YearlyModel from "./YearlyModel";
 import MonthlyModel from "./MonthlyModel";
+import PriceBreakevenModel from "./PriceBreakevenModel";
 
 const S = {
   nav: { 
@@ -28,11 +29,13 @@ const S = {
 const Navigation = () => {
   const loc = useLocation();
   const isAylik = loc.pathname === "/ayl%C4%B1k" || loc.pathname === "/ayl%C4%B1k/" || loc.pathname === "/aylık" || loc.pathname === "/aylık/";
-  
+  const isFiyat = loc.pathname === "/fiyat" || loc.pathname === "/fiyat/";
+
   return (
     <div style={S.nav}>
       <Link to="/" style={S.link(loc.pathname === "/")}>Yıllık Simülasyon</Link>
       <Link to="/aylık" style={S.link(isAylik)}>Aylık Nakit Akışı</Link>
+      <Link to="/fiyat" style={S.link(isFiyat)}>Fiyat Bazlı Başa Baş</Link>
     </div>
   );
 };
@@ -45,6 +48,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<YearlyModel />} />
           <Route path="/aylık" element={<MonthlyModel />} />
+          <Route path="/fiyat" element={<PriceBreakevenModel />} />
         </Routes>
       </HashRouter>
     </AppProvider>
