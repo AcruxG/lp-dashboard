@@ -72,6 +72,39 @@ export default function DetailAnalysisPage() {
   const corpTax = preTaxProfit > 0 ? preTaxProfit * 0.25 : 0;
   const netProfit = preTaxProfit - corpTax;
 
+  // ── Averages from detail data ─────────────────────────────────────────────
+  const totalAssignments = detailStudents.reduce((a, s) => a + s.courseIds.length, 0);
+  const totalHoursAssigned = detailStudents.reduce((a, s) => (
+    a + s.courseIds.reduce((b, cid) => b + ((courseMap[cid]?.hours) || 0), 0)
+  ), 0);
+  const totalEffectiveHours = detailStudents.reduce((a, s) => (
+    a + s.courseIds.reduce((b, cid) => {
+      const c = courseMap[cid];
+      return c ? b + c.hours * (1 - (c.discount || 0) / 100) : b;
+    }, 0)
+  ), 0);
+  const weightedDiscountSum = detailStudents.reduce((a, s) => (
+    a + s.courseIds.reduce((b, cid) => {
+      const c = courseMap[cid];
+      return c ? b + c.hours * (c.discount || 0) : b;
+    }, 0)
+  ), 0);
+
+  const avgCoursesPerStudent = detailStudents.length > 0 ? totalAssignments / detailStudents.length : 0;
+  const avgHoursPerCourse = totalAssignments > 0 ? totalHoursAssigned / totalAssignments : 0;
+  const avgPricePerHour = totalEffectiveHours > 0 ? totalCourseRev / totalEffectiveHours : 0;
+  const avgTutorCostPerHour = totalHoursAssigned > 0 ? totalCourseCst / totalHoursAssigned : 0;
+  const avgDiscount = totalHoursAssigned > 0 ? weightedDiscountSum / totalHoursAssigned : 0;
+  const currentAvgCoursePrice = totalAssignments > 0 ? totalCourseRev / totalAssignments : 0;
+
+  // Break-even avg price/hour (uniform price applied to all assignments, holding hours/discount constant)
+  const fixedCostsForBE = totalCourseCst + danCstTotal + managerAnnual + fc;
+  const requiredCourseRev = 1.2 * fixedCostsForBE - totalAppsRev;
+  const breakEvenAvgPrice = totalEffectiveHours > 0 ? requiredCourseRev / totalEffectiveHours : Infinity;
+  const breakEvenAvgCoursePrice = totalAssignments > 0 ? requiredCourseRev / totalAssignments : Infinity;
+  const priceDiff = avgPricePerHour - breakEvenAvgPrice;
+  const priceSurplus = avgPricePerHour >= breakEvenAvgPrice;
+
   // Per-course attach + revenue
   const perCourse = useMemo(() => {
     return detailCourses.map(c => {
@@ -310,8 +343,72 @@ export default function DetailAnalysisPage() {
           </table>
         </div>
 
+        {/* Average-based break-even */}
+        <div style={S.sectionTitle}>Ortalama Bazlı Başa Baş Fiyat</div>
+        {totalAssignments === 0 ? (
+          <div style={{ ...S.card, padding: 30, textAlign: "center", color: "#94A3B8", marginBottom: 18 }}>
+            Ders ataması yok. "1. Öğrenciler" sayfasından öğrencilere ders ata.
+          </div>
+        ) : (
+          <>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 14 }}>
+              <div style={{ ...S.card, padding: 16, borderTop: "4px solid #94A3B8" }}>
+                <div style={S.label}>Mevcut Ort. Saat Ücreti</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: "#CBD5E1" }}>₺{fmt(avgPricePerHour)}</div>
+                <div style={{ fontSize: 9, color: "#94A3B8", marginTop: 4 }}>Ağırlıklı (saat × indirim)</div>
+              </div>
+              <div style={{ ...S.card, padding: 16, borderTop: priceSurplus ? "4px solid #048C8C" : "4px solid #F25C5C" }}>
+                <div style={S.label}>Başa Baş Ort. Saat Ücreti</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: priceSurplus ? "#048C8C" : "#F25C5C" }}>
+                  ₺{fmt(breakEvenAvgPrice)}
+                </div>
+                <div style={{ fontSize: 9, color: "#94A3B8", marginTop: 4 }}>
+                  Fark: {priceSurplus ? "+" : ""}₺{fmt(priceDiff)} ({breakEvenAvgPrice > 0 ? ((priceDiff / breakEvenAvgPrice) * 100).toFixed(1) : "0"}%)
+                </div>
+              </div>
+              <div style={{ ...S.card, padding: 16, borderTop: "4px solid #94A3B8" }}>
+                <div style={S.label}>Mevcut Ort. Kurs Fiyatı</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: "#CBD5E1" }}>₺{fmt(currentAvgCoursePrice)}</div>
+                <div style={{ fontSize: 9, color: "#94A3B8", marginTop: 4 }}>Toplam gelir / atama</div>
+              </div>
+              <div style={{ ...S.card, padding: 16, borderTop: priceSurplus ? "4px solid #38BDF8" : "4px solid #F25C5C" }}>
+                <div style={S.label}>Başa Baş Ort. Kurs Fiyatı</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: priceSurplus ? "#38BDF8" : "#F25C5C" }}>
+                  ₺{fmt(breakEvenAvgCoursePrice)}
+                </div>
+                <div style={{ fontSize: 9, color: "#94A3B8", marginTop: 4 }}>Atama başına</div>
+              </div>
+            </div>
+
+            {/* Average values detail */}
+            <div style={{ ...S.card, padding: "16px 22px", marginBottom: 18 }}>
+              <div style={S.label}>Ortalamaların Türetildiği Değerler</div>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11, marginTop: 10 }}>
+                <tbody>
+                  {[
+                    ["Toplam öğrenci", detailStudents.length, "#FFFFFF"],
+                    ["Toplam ders ataması", totalAssignments, "#FFFFFF"],
+                    ["Ort. ders / öğrenci", avgCoursesPerStudent.toFixed(2), "#FFFFFF"],
+                    ["Ort. saat / ders", avgHoursPerCourse.toFixed(1), "#FFFFFF"],
+                    ["Ort. saat ücreti (ağırlıklı)", `₺${fmt(avgPricePerHour)}`, "#037A7A"],
+                    ["Ort. eğitmen ₺/saat", `₺${fmt(avgTutorCostPerHour)}`, "#F25C5C"],
+                    ["Ort. indirim", `%${avgDiscount.toFixed(1)}`, "#FBBF24"],
+                    ["Toplam etkin saat (saat × (1−indirim))", fmt(totalEffectiveHours), "#94A3B8"],
+                  ].map(([k, v, col], i) => (
+                    <tr key={i} style={{ borderBottom: i < 7 ? "1px solid #14465B" : "none" }}>
+                      <td style={{ padding: "8px 0", color: "#94A3B8" }}>{k}</td>
+                      <td style={{ padding: "8px 0", textAlign: "right", color: col, fontWeight: 600 }}>{v}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
         <div style={{ color: "#94A3B8", fontSize: 10, textAlign: "center", lineHeight: 1.8 }}>
           KDV %20 gelirin içinde · Kurumlar Vergisi %25 vergi öncesi kâr üzerinden · Sabit giderler, danışman maaş/komisyon ve yönetici maaşı paylaşımlıdır.
+          <br/>Başa baş fiyat: tüm derslere uniform fiyat uygulansaydı, mevcut saat ve indirimlerle vergi öncesi kâr = 0 olurdu.
         </div>
       </div>
     </>
