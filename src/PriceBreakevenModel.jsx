@@ -26,11 +26,11 @@ const fmtK = v => {
 const PriceTip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div style={{ background: "#FFFFFF", border: "1px solid #CBD5E1", borderRadius: 8, padding: "10px 14px" }}>
-      <div style={{ color: "#475569", fontSize: 11, marginBottom: 6, fontWeight: 600 }}>₺{fmt(label)} / saat</div>
+    <div style={{ background: "#0B202B", border: "1px solid #14465B", borderRadius: 8, padding: "10px 14px" }}>
+      <div style={{ color: "#94A3B8", fontSize: 11, marginBottom: 6, fontWeight: 600 }}>₺{fmt(label)} / saat</div>
       {payload.map(p => (
         <div key={p.name} style={{ color: p.color, fontSize: 11, display: "flex", gap: 4 }}>
-          <span>{p.name}:</span> <b style={{ color: "#0F172A" }}>₺{fmt(p.value)}</b>
+          <span>{p.name}:</span> <b style={{ color: "#F1F5F9" }}>₺{fmt(p.value)}</b>
         </div>
       ))}
     </div>
@@ -203,69 +203,48 @@ export default function PriceBreakevenModel() {
         </div>
       </div>
 
-      {/* Formula explanation */}
-      <div style={{
-        ...S.card, padding: 20, marginBottom: 20,
-        background: "linear-gradient(135deg, #048C8C10 0%, #0B202B 100%)",
-        borderColor: "#048C8C33"
-      }}>
-        <div style={S.label}>Formül</div>
-        <div style={{ color: "#F1F5F9", fontSize: 13, marginTop: 8, fontWeight: 600 }}>
-          p<sub>BE</sub> = [1.2 × (Değişken Maliyet + Sabit Gider) − Danışmanlık Geliri] / [Öğr × Kurs × Saat × (1 − İndirim)]
-        </div>
-        <div style={{ color: "#94A3B8", fontSize: 11, marginTop: 10, lineHeight: 1.7 }}>
-          • Değişken Maliyet: ₺{fmt(courseCstTotal)} (eğitmen) + ₺{fmt(danCstTotal)} (danışman) + ₺{fmt(managerAnnual)} (yönetici) = <span style={{ color: "#F25C5C" }}>₺{fmt(totalCst)}</span><br/>
-          • Sabit Gider (FC): <span style={{ color: "#F25C5C" }}>₺{fmt(fc)}</span><br/>
-          • Danışmanlık Geliri: <span style={{ color: "#02A6A6" }}>₺{fmt(danRevTotal)}</span> (kurs fiyatından bağımsız, başa başı düşürür)<br/>
-          • 1.2 katsayısı: KDV %20 → Gelir × (100/120) net kalır
-        </div>
-        <div style={{ color: "#94A3B8", fontSize: 11, marginTop: 8, paddingTop: 8, borderTop: "1px solid #14465B" }}>
-          <span style={{ color: "#048C8C" }}>p<sub>BE</sub></span> = [1.2 × ₺{fmt(allCostsForBE)} − ₺{fmt(danRevTotal)}] / [{numStudents} × {numCourses} × {hours} × {discountFactor.toFixed(2)}]
-          {Number.isFinite(breakEvenPrice) && <> = <span style={{ color: "#048C8C", fontWeight: 700 }}>₺{fmt(breakEvenPrice)}/saat</span></>}
-        </div>
-      </div>
-
       {/* Chart 1: Net profit vs price */}
       <div style={S.sectionTitle}>Net Kâr vs Saat Ücreti</div>
-      <div style={{ background: "#F8FAFC", borderRadius: 8, padding: "20px 16px 0 0", marginBottom: 20 }}>
+      <div style={{ ...S.card, padding: "20px 16px 0 0", marginBottom: 20 }}>
         <ResponsiveContainer width="100%" height={340}>
           <LineChart data={priceData} margin={{ top: 20, right: 32, bottom: 28, left: 28 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#CBD5E1" />
-            <XAxis dataKey="price" stroke="#475569" tick={{ fontSize: 10, fill: "#475569" }}
+            <CartesianGrid strokeDasharray="3 3" stroke="#14465B" />
+            <XAxis dataKey="price" stroke="#94A3B8" tick={{ fontSize: 10, fill: "#CBD5E1" }}
               tickFormatter={v => `₺${fmtK(v)}`}
-              label={{ value: "Saat Ücreti (₺/saat)", position: "insideBottom", offset: -10, fill: "#475569", fontSize: 11 }} />
-            <YAxis stroke="#475569" tick={{ fontSize: 10, fill: "#475569" }} tickFormatter={v => `₺${fmtK(v)}`} />
+              label={{ value: "Saat Ücreti (₺/saat)", position: "insideBottom", offset: -10, fill: "#94A3B8", fontSize: 11 }} />
+            <YAxis stroke="#94A3B8" tick={{ fontSize: 10, fill: "#CBD5E1" }} tickFormatter={v => `₺${fmtK(v)}`} />
             <Tooltip content={<PriceTip />} />
-            <ReferenceLine y={0} stroke="#D97706" strokeDasharray="5 5" />
+            <ReferenceLine y={0} stroke="#FBBF24" strokeDasharray="5 5" />
             {Number.isFinite(breakEvenPrice) && (
-              <ReferenceLine x={Math.round(breakEvenPrice)} stroke="#048C8C" strokeDasharray="5 5"
-                label={{ value: `Başa Baş ₺${fmt(breakEvenPrice)}`, fill: "#048C8C", fontSize: 10, position: "top", fontWeight: "bold" }} />
+              <ReferenceLine x={Math.round(breakEvenPrice)} stroke="#34D399" strokeDasharray="5 5"
+                label={{ value: `Başa Baş ₺${fmt(breakEvenPrice)}`, fill: "#34D399", fontSize: 10, position: "top", fontWeight: "bold" }} />
             )}
-            <ReferenceLine x={pricePerHour} stroke="#F25C5C" strokeDasharray="3 3"
-              label={{ value: `Mevcut ₺${fmt(pricePerHour)}`, fill: "#F25C5C", fontSize: 10, position: "insideBottomRight" }} />
-            <Line type="monotone" dataKey="net" name="Net Kâr" stroke="#048C8C" strokeWidth={3} dot={false} />
+            <ReferenceLine x={pricePerHour} stroke="#F472B6" strokeDasharray="3 3"
+              label={{ value: `Mevcut ₺${fmt(pricePerHour)}`, fill: "#F472B6", fontSize: 10, position: "insideBottomRight" }} />
+            <Line type="monotone" dataKey="net" name="Net Kâr" stroke="#38BDF8" strokeWidth={3} dot={false} />
           </LineChart>
         </ResponsiveContainer>
       </div>
 
       {/* Chart 2: BE price vs # students */}
       <div style={S.sectionTitle}>Başa Baş Saat Ücreti vs Öğrenci Sayısı</div>
-      <div style={{ background: "#F8FAFC", borderRadius: 8, padding: "20px 16px 0 0", marginBottom: 20 }}>
+      <div style={{ ...S.card, padding: "20px 16px 0 0", marginBottom: 20 }}>
         <ResponsiveContainer width="100%" height={340}>
           <LineChart data={beVsStudents} margin={{ top: 20, right: 32, bottom: 28, left: 28 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#CBD5E1" />
-            <XAxis dataKey="n" stroke="#475569" tick={{ fontSize: 10, fill: "#475569" }}
-              label={{ value: "Öğrenci Sayısı", position: "insideBottom", offset: -10, fill: "#475569", fontSize: 11 }} />
-            <YAxis stroke="#475569" tick={{ fontSize: 10, fill: "#475569" }} tickFormatter={v => `₺${fmtK(v)}`} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#14465B" />
+            <XAxis dataKey="n" stroke="#94A3B8" tick={{ fontSize: 10, fill: "#CBD5E1" }}
+              label={{ value: "Öğrenci Sayısı", position: "insideBottom", offset: -10, fill: "#94A3B8", fontSize: 11 }} />
+            <YAxis stroke="#94A3B8" tick={{ fontSize: 10, fill: "#CBD5E1" }} tickFormatter={v => `₺${fmtK(v)}`} />
             <Tooltip
-              contentStyle={{ background: "#FFFFFF", borderRadius: 8, border: "1px solid #CBD5E1", color: "#0F172A" }}
+              contentStyle={{ background: "#0B202B", borderRadius: 8, border: "1px solid #14465B", color: "#F1F5F9" }}
+              labelStyle={{ color: "#94A3B8" }}
               labelFormatter={l => `${l} öğrenci`}
               formatter={v => [`₺${fmt(v)} / saat`, "Gerekli Saat Ücreti"]} />
-            <ReferenceLine x={numStudents} stroke="#F25C5C" strokeDasharray="3 3"
-              label={{ value: `Mevcut: ${numStudents} öğr.`, fill: "#F25C5C", fontSize: 10, position: "top" }} />
-            <ReferenceLine y={pricePerHour} stroke="#D97706" strokeDasharray="3 3"
-              label={{ value: `Mevcut Fiyat: ₺${fmt(pricePerHour)}`, fill: "#D97706", fontSize: 10, position: "insideTopRight" }} />
-            <Line type="monotone" dataKey="beP" name="Başa Baş Saat Ücreti" stroke="#048C8C" strokeWidth={3} dot={{ r: 2 }} />
+            <ReferenceLine x={numStudents} stroke="#F472B6" strokeDasharray="3 3"
+              label={{ value: `Mevcut: ${numStudents} öğr.`, fill: "#F472B6", fontSize: 10, position: "top" }} />
+            <ReferenceLine y={pricePerHour} stroke="#FBBF24" strokeDasharray="3 3"
+              label={{ value: `Mevcut Fiyat: ₺${fmt(pricePerHour)}`, fill: "#FBBF24", fontSize: 10, position: "insideTopRight" }} />
+            <Line type="monotone" dataKey="beP" name="Başa Baş Saat Ücreti" stroke="#34D399" strokeWidth={3} dot={{ r: 2 }} />
           </LineChart>
         </ResponsiveContainer>
       </div>
