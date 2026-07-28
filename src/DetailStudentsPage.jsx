@@ -55,6 +55,7 @@ export default function DetailStudentsPage() {
     detailStudents, setDetailStudents,
     detailCourses,
     pricePerAppUsd, usdTry,
+    kocLukPricePerHour, kocLukTutorCostPerHour,
   } = useAppContext();
 
   const pricePerAppTl = Math.round(pricePerAppUsd * usdTry);
@@ -75,7 +76,15 @@ export default function DetailStudentsPage() {
     });
     const apps = s.numApps || 0;
     const appsRev = apps * pricePerAppTl;
-    return { rev, cst, courseMargin: rev - cst, appsRev, totalRev: rev + appsRev };
+    const kocH = s.kocLukHours || 0;
+    const kocRev = kocH * kocLukPricePerHour;
+    const kocCst = kocH * kocLukTutorCostPerHour;
+    return {
+      rev, cst, courseMargin: rev - cst,
+      appsRev,
+      kocH, kocRev, kocCst, kocMargin: kocRev - kocCst,
+      totalRev: rev + appsRev + kocRev,
+    };
   };
 
   const update = (id, patch) => {
@@ -93,7 +102,7 @@ export default function DetailStudentsPage() {
   const addStudent = () => {
     const id = nextId("s", detailStudents);
     setDetailStudents(prev => [...prev, {
-      id, name: `Öğrenci ${prev.length + 1}`, courseIds: [], numApps: 0
+      id, name: `Öğrenci ${prev.length + 1}`, courseIds: [], numApps: 0, kocLukHours: 0
     }]);
   };
 
@@ -106,9 +115,10 @@ export default function DetailStudentsPage() {
     acc.courseRev += x.rev;
     acc.courseCst += x.cst;
     acc.appsRev += x.appsRev;
+    acc.kocRev += x.kocRev;
     acc.totalRev += x.totalRev;
     return acc;
-  }, { courseRev: 0, courseCst: 0, appsRev: 0, totalRev: 0 });
+  }, { courseRev: 0, courseCst: 0, appsRev: 0, kocRev: 0, totalRev: 0 });
 
   return (
     <>
@@ -128,7 +138,7 @@ export default function DetailStudentsPage() {
         </div>
 
         {/* Top totals */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 12, marginBottom: 20 }}>
           <div style={{ ...S.card, padding: 14 }}>
             <div style={S.label}>Toplam Öğrenci</div>
             <div style={{ fontSize: 22, fontWeight: 700, color: "#FFFFFF" }}>{detailStudents.length}</div>
@@ -136,6 +146,10 @@ export default function DetailStudentsPage() {
           <div style={{ ...S.card, padding: 14 }}>
             <div style={S.label}>Kurs Geliri</div>
             <div style={{ fontSize: 22, fontWeight: 700, color: "#037A7A" }}>₺{fmt(totals.courseRev)}</div>
+          </div>
+          <div style={{ ...S.card, padding: 14 }}>
+            <div style={S.label}>Koçluk Geliri</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: "#8B5CF6" }}>₺{fmt(totals.kocRev)}</div>
           </div>
           <div style={{ ...S.card, padding: 14 }}>
             <div style={S.label}>Danışmanlık Geliri</div>
@@ -157,13 +171,22 @@ export default function DetailStudentsPage() {
           const calc = calcStudent(s);
           return (
             <div key={s.id} style={{ ...S.card, padding: 18, marginBottom: 14 }}>
-              {/* Row 1: name + apps + delete */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 180px 80px", gap: 14, alignItems: "end", marginBottom: 14 }}>
+              {/* Row 1: name + koçluk hours + apps + delete */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 180px 180px 80px", gap: 14, alignItems: "end", marginBottom: 14 }}>
                 <div>
                   <div style={S.label}>İsim</div>
                   <input type="text" value={s.name}
                     onChange={e => update(s.id, { name: e.target.value })}
                     style={S.input} />
+                </div>
+                <div>
+                  <div style={S.label}>Koçluk Saati</div>
+                  <input type="number" min={0} value={s.kocLukHours || 0}
+                    onChange={e => update(s.id, { kocLukHours: Math.max(0, parseFloat(e.target.value) || 0) })}
+                    style={S.numInput} />
+                  <span style={{ fontSize: 10, color: "#8B5CF6", marginLeft: 8 }}>
+                    ₺{fmt(calc.kocRev)}
+                  </span>
                 </div>
                 <div>
                   <div style={S.label}>Danışmanlık Başvuru Sayısı</div>
@@ -199,24 +222,30 @@ export default function DetailStudentsPage() {
               </div>
 
               {/* Row 3: summary */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginTop: 14, paddingTop: 14, borderTop: "1px solid #14465B" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 12, marginTop: 14, paddingTop: 14, borderTop: "1px solid #14465B" }}>
                 <div>
                   <div style={S.label}>Kurs Geliri</div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: "#037A7A" }}>₺{fmt(calc.rev)}</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "#037A7A" }}>₺{fmt(calc.rev)}</div>
                 </div>
                 <div>
-                  <div style={S.label}>Eğitmen Gideri</div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: "#F25C5C" }}>₺{fmt(calc.cst)}</div>
+                  <div style={S.label}>Eğt. Gideri</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "#F25C5C" }}>₺{fmt(calc.cst)}</div>
                 </div>
                 <div>
                   <div style={S.label}>Kurs Marjini</div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: calc.courseMargin >= 0 ? "#048C8C" : "#F25C5C" }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: calc.courseMargin >= 0 ? "#048C8C" : "#F25C5C" }}>
                     ₺{fmt(calc.courseMargin)}
                   </div>
                 </div>
                 <div>
-                  <div style={S.label}>Toplam Gelir (+ Danışmanlık)</div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: "#34D399" }}>₺{fmt(calc.totalRev)}</div>
+                  <div style={S.label}>Koçluk Marjini</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: calc.kocMargin >= 0 ? "#8B5CF6" : "#F25C5C" }}>
+                    ₺{fmt(calc.kocMargin)}
+                  </div>
+                </div>
+                <div>
+                  <div style={S.label}>Toplam Gelir</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "#34D399" }}>₺{fmt(calc.totalRev)}</div>
                 </div>
               </div>
             </div>

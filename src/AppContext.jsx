@@ -12,9 +12,9 @@ const SEED_COURSES = [
 ];
 
 const SEED_STUDENTS = [
-  { id: "s_1", name: "Öğrenci 1", courseIds: ["c_alm", "c_alc"],    numApps: 5 },
-  { id: "s_2", name: "Öğrenci 2", courseIds: ["c_ap_bc", "c_alp"], numApps: 3 },
-  { id: "s_3", name: "Öğrenci 3", courseIds: ["c_sat_m"],            numApps: 0 },
+  { id: "s_1", name: "Öğrenci 1", courseIds: ["c_alm", "c_alc"],    numApps: 5, kocLukHours: 20 },
+  { id: "s_2", name: "Öğrenci 2", courseIds: ["c_ap_bc", "c_alp"], numApps: 3, kocLukHours: 15 },
+  { id: "s_3", name: "Öğrenci 3", courseIds: ["c_sat_m"],            numApps: 0, kocLukHours: 0 },
 ];
 
 const loadJSON = (key, fallback) => {
@@ -32,7 +32,7 @@ export const AppProvider = ({ children }) => {
   const [discount, setDiscount] = useState(10);
   const [tutorCostPerHour, setTutorCostPerHour] = useState(2000);
   
-  // Danışmanlık
+  // Danışmanlık (üniversite başvuru danışmanlığı)
   const [numApps, setNumApps] = useState(5);
   const [pricePerAppUsd, setPricePerAppUsd] = useState(700);
   const [usdTry, setUsdTry] = useState(38);
@@ -41,7 +41,16 @@ export const AppProvider = ({ children }) => {
   const [consultantWage, setConsultantWage] = useState(30000);
   const [payMode, setPayMode] = useState("wage");
   const [commissionPct, setCommissionPct] = useState(20);
-  
+
+  // Koçluk (hocalık gibi saatlik akademik koçluk)
+  const [kocLukHours, setKocLukHours] = useState(20);          // öğrenci başı ortalama saat (Yıllık)
+  const [kocLukPricePerHour, setKocLukPricePerHour] = useState(3000);
+  const [kocLukTutorCostPerHour, setKocLukTutorCostPerHour] = useState(2000);
+
+  // Satış komisyonları (ders satışı üzerinden)
+  const [salespersonPct, setSalespersonPct] = useState(10);    // satışçı komisyonu %
+  const [leadReferrerPct, setLeadReferrerPct] = useState(5);   // lead getirene komisyon %
+
   // Manager
   const [managerWage, setManagerWage] = useState(50000);
 
@@ -102,6 +111,13 @@ export const AppProvider = ({ children }) => {
     consultantWage, setConsultantWage,
     payMode, setPayMode,
     commissionPct, setCommissionPct,
+    // Koçluk
+    kocLukHours, setKocLukHours,
+    kocLukPricePerHour, setKocLukPricePerHour,
+    kocLukTutorCostPerHour, setKocLukTutorCostPerHour,
+    // Satış komisyonları
+    salespersonPct, setSalespersonPct,
+    leadReferrerPct, setLeadReferrerPct,
     managerWage, setManagerWage,
     // Detailed FC
     fcKira, setFcKira,

@@ -22,12 +22,15 @@ export default function DetailAnalysisPage() {
     detailStudents, detailCourses,
     pricePerAppUsd, usdTry,
     numConsultants, consultantWage, payMode, commissionPct,
+    kocLukPricePerHour, kocLukTutorCostPerHour,
+    salespersonPct, leadReferrerPct,
     managerWage, fc,
     totalMonthlyFc, totalAnnualOneOffFc,
   } = useAppContext();
 
   const pricePerAppTl = Math.round(pricePerAppUsd * usdTry);
   const managerAnnual = managerWage * 12;
+  const commRate = (salespersonPct + leadReferrerPct) / 100;
 
   const courseMap = useMemo(() => {
     const m = {};
@@ -46,26 +49,36 @@ export default function DetailAnalysisPage() {
     });
     const apps = s.numApps || 0;
     const appsRev = apps * pricePerAppTl;
+    const kocH = s.kocLukHours || 0;
+    const kocRev = kocH * kocLukPricePerHour;
+    const kocCst = kocH * kocLukTutorCostPerHour;
     return {
       ...s,
-      apps,
+      apps, kocH,
       courseRev, courseCst,
       courseMargin: courseRev - courseCst,
       appsRev,
-      totalRev: courseRev + appsRev,
+      kocRev, kocCst,
+      kocMargin: kocRev - kocCst,
+      totalRev: courseRev + appsRev + kocRev,
     };
-  }), [detailStudents, courseMap, pricePerAppTl]);
+  }), [detailStudents, courseMap, pricePerAppTl, kocLukPricePerHour, kocLukTutorCostPerHour]);
 
   // Totals
   const totalCourseRev = perStudent.reduce((a, x) => a + x.courseRev, 0);
   const totalCourseCst = perStudent.reduce((a, x) => a + x.courseCst, 0);
   const totalAppsRev = perStudent.reduce((a, x) => a + x.appsRev, 0);
+  const totalKocRev = perStudent.reduce((a, x) => a + x.kocRev, 0);
+  const totalKocCst = perStudent.reduce((a, x) => a + x.kocCst, 0);
   const danCstTotal = payMode === "wage"
     ? numConsultants * consultantWage * 12
     : Math.round(totalAppsRev * commissionPct / 100);
+  const commissionsTotal = Math.round(totalCourseRev * commRate);
+  const salespersonCstTotal = Math.round(totalCourseRev * salespersonPct / 100);
+  const leadReferrerCstTotal = Math.round(totalCourseRev * leadReferrerPct / 100);
 
-  const totalRev = totalCourseRev + totalAppsRev;
-  const totalVarCst = totalCourseCst + danCstTotal + managerAnnual;
+  const totalRev = totalCourseRev + totalAppsRev + totalKocRev;
+  const totalVarCst = totalCourseCst + totalKocCst + danCstTotal + managerAnnual + commissionsTotal;
   const grossProfit = totalRev - totalVarCst;
   const totalKdv = totalRev * 20 / 120;
   const preTaxProfit = grossProfit - fc - totalKdv;
@@ -97,11 +110,20 @@ export default function DetailAnalysisPage() {
   const avgDiscount = totalHoursAssigned > 0 ? weightedDiscountSum / totalHoursAssigned : 0;
   const currentAvgCoursePrice = totalAssignments > 0 ? totalCourseRev / totalAssignments : 0;
 
-  // Break-even avg price/hour (uniform price applied to all assignments, holding hours/discount constant)
-  const fixedCostsForBE = totalCourseCst + danCstTotal + managerAnnual + fc;
-  const requiredCourseRev = 1.2 * fixedCostsForBE - totalAppsRev;
-  const breakEvenAvgPrice = totalEffectiveHours > 0 ? requiredCourseRev / totalEffectiveHours : Infinity;
-  const breakEvenAvgCoursePrice = totalAssignments > 0 ? requiredCourseRev / totalAssignments : Infinity;
+  // Break-even avg price/hour
+  // R = a×p + R0 (koçluk + danışmanlık); C_var = C0 + a×p × commRate
+  // (a×p + R0)(1 − KDV) = C0 + a×p × commRate
+  //   → p_BE = [1.2×C0 − R0] / [a × (1 − 1.2×commRate)]
+  // Here a = totalEffectiveHours (if uniform p)
+  const R0_bea = totalKocRev + totalAppsRev;
+  const C0_bea = totalCourseCst + totalKocCst + danCstTotal + managerAnnual + fc;
+  const denomBea = totalEffectiveHours * (1 - 1.2 * commRate);
+  const requiredCourseRev = 1.2 * C0_bea - R0_bea;
+  const breakEvenAvgPrice = denomBea > 0 ? requiredCourseRev / denomBea : Infinity;
+  // Break-even avg course price = breakEvenPrice × avg(effective hours per assignment)
+  const breakEvenAvgCoursePrice = Number.isFinite(breakEvenAvgPrice) && totalAssignments > 0
+    ? breakEvenAvgPrice * (totalEffectiveHours / totalAssignments)
+    : Infinity;
   const priceDiff = avgPricePerHour - breakEvenAvgPrice;
   const priceSurplus = avgPricePerHour >= breakEvenAvgPrice;
 
@@ -130,19 +152,19 @@ export default function DetailAnalysisPage() {
   const chartData = useMemo(() => {
     const fixedTotal = fc + managerAnnual + (payMode === "wage" ? numConsultants * consultantWage * 12 : 0);
     return perStudent.map(s => {
-      // Each student's pretax = totalRev - courseCst - (commission share if commission) - kdvShare - allocated fixed
       const revShare = totalRev > 0 ? s.totalRev / totalRev : 0;
-      const commShare = payMode === "commission" ? Math.round(s.appsRev * commissionPct / 100) : 0;
+      const danCommShare = payMode === "commission" ? Math.round(s.appsRev * commissionPct / 100) : 0;
+      const salesCommShare = Math.round(s.courseRev * commRate);
       const kdvShare = s.totalRev * 20 / 120;
       const fixedShare = fixedTotal * revShare;
-      const preTax = s.totalRev - s.courseCst - commShare - kdvShare - fixedShare;
+      const preTax = s.totalRev - s.courseCst - s.kocCst - danCommShare - salesCommShare - kdvShare - fixedShare;
       return {
         name: s.name,
         gelir: Math.round(s.totalRev),
         netKatki: Math.round(preTax),
       };
     });
-  }, [perStudent, totalRev, fc, managerAnnual, numConsultants, consultantWage, payMode, commissionPct]);
+  }, [perStudent, totalRev, fc, managerAnnual, numConsultants, consultantWage, payMode, commissionPct, commRate]);
 
   return (
     <>
@@ -167,14 +189,14 @@ export default function DetailAnalysisPage() {
             <div style={S.label}>Toplam Gelir</div>
             <div style={{ fontSize: 20, fontWeight: 700, color: "#037A7A" }}>₺{fmt(totalRev)}</div>
             <div style={{ fontSize: 9, color: "#94A3B8", marginTop: 4 }}>
-              Kurs ₺{fmtK(totalCourseRev)} + Dan. ₺{fmtK(totalAppsRev)}
+              Kurs ₺{fmtK(totalCourseRev)} + Koç ₺{fmtK(totalKocRev)} + Dan ₺{fmtK(totalAppsRev)}
             </div>
           </div>
           <div style={{ ...S.card, padding: 16, borderTop: "4px solid #F25C5C" }}>
             <div style={S.label}>Değişken Gider</div>
             <div style={{ fontSize: 20, fontWeight: 700, color: "#F25C5C" }}>₺{fmt(totalVarCst)}</div>
             <div style={{ fontSize: 9, color: "#94A3B8", marginTop: 4 }}>
-              Eğt. ₺{fmtK(totalCourseCst)} + Dan. ₺{fmtK(danCstTotal)} + Yön. ₺{fmtK(managerAnnual)}
+              Eğt+Koç+Dan+Yön + Kom. ₺{fmtK(commissionsTotal)}
             </div>
           </div>
           <div style={{ ...S.card, padding: 16, borderTop: "4px solid #FB7185" }}>
@@ -209,10 +231,14 @@ export default function DetailAnalysisPage() {
             <tbody>
               {[
                 { k: "Kurs Geliri", v: totalCourseRev, col: "#037A7A" },
+                { k: "Koçluk Geliri", v: totalKocRev, col: "#8B5CF6" },
                 { k: "Danışmanlık Geliri", v: totalAppsRev, col: "#02A6A6" },
                 { k: "= Toplam Gelir", v: totalRev, col: "#FFFFFF", bold: true },
                 { k: "− Eğitmen Gideri", v: -totalCourseCst, col: "#F25C5C" },
+                { k: "− Koç Gideri", v: -totalKocCst, col: "#F25C5C" },
                 { k: `− Danışman Gideri (${payMode === "wage" ? "Maaş" : `Komisyon %${commissionPct}`})`, v: -danCstTotal, col: "#F25C5C" },
+                { k: `− Satışçı Komisyonu (%${salespersonPct})`, v: -salespersonCstTotal, col: "#FB923C" },
+                { k: `− Lead Getirene Komisyon (%${leadReferrerPct})`, v: -leadReferrerCstTotal, col: "#FB923C" },
                 { k: "− Yönetici Maaşı (yıllık)", v: -managerAnnual, col: "#F25C5C" },
                 { k: "= Brüt Kâr", v: grossProfit, col: grossProfit >= 0 ? "#FFFFFF" : "#F25C5C", bold: true },
                 { k: "− Sabit Giderler (FC)", v: -fc, col: "#FB7185" },
@@ -268,7 +294,7 @@ export default function DetailAnalysisPage() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
             <thead>
               <tr style={{ background: "#060A0D", borderBottom: "1px solid #14465B" }}>
-                {["Öğrenci", "Ders Sayısı", "Başvuru", "Kurs Geliri", "Eğt. Gideri", "Kurs Marjini", "Dan. Geliri", "Toplam Gelir"].map(h => (
+                {["Öğrenci", "Ders", "Koçluk Sa.", "Başvuru", "Kurs Geliri", "Koç. Geliri", "Dan. Geliri", "Kurs Marjini", "Koç. Marjini", "Toplam Gelir"].map(h => (
                   <th key={h} style={{
                     padding: "10px 12px",
                     textAlign: h === "Öğrenci" ? "left" : "right",
@@ -282,18 +308,22 @@ export default function DetailAnalysisPage() {
                 <tr key={s.id} style={{ borderBottom: "1px solid #1A5369" }}>
                   <td style={{ padding: "10px 12px", color: "#FFFFFF", fontWeight: 700 }}>{s.name}</td>
                   <td style={{ padding: "10px 12px", textAlign: "right", color: "#CBD5E1" }}>{s.courseIds.length}</td>
+                  <td style={{ padding: "10px 12px", textAlign: "right", color: "#CBD5E1" }}>{s.kocH}</td>
                   <td style={{ padding: "10px 12px", textAlign: "right", color: "#CBD5E1" }}>{s.apps}</td>
                   <td style={{ padding: "10px 12px", textAlign: "right", color: "#037A7A" }}>₺{fmt(s.courseRev)}</td>
-                  <td style={{ padding: "10px 12px", textAlign: "right", color: "#F25C5C" }}>₺{fmt(s.courseCst)}</td>
+                  <td style={{ padding: "10px 12px", textAlign: "right", color: "#8B5CF6" }}>₺{fmt(s.kocRev)}</td>
+                  <td style={{ padding: "10px 12px", textAlign: "right", color: "#02A6A6" }}>₺{fmt(s.appsRev)}</td>
                   <td style={{ padding: "10px 12px", textAlign: "right", color: s.courseMargin >= 0 ? "#048C8C" : "#F25C5C", fontWeight: 700 }}>
                     ₺{fmt(s.courseMargin)}
                   </td>
-                  <td style={{ padding: "10px 12px", textAlign: "right", color: "#02A6A6" }}>₺{fmt(s.appsRev)}</td>
+                  <td style={{ padding: "10px 12px", textAlign: "right", color: s.kocMargin >= 0 ? "#8B5CF6" : "#F25C5C", fontWeight: 700 }}>
+                    ₺{fmt(s.kocMargin)}
+                  </td>
                   <td style={{ padding: "10px 12px", textAlign: "right", color: "#34D399", fontWeight: 700 }}>₺{fmt(s.totalRev)}</td>
                 </tr>
               ))}
               {perStudent.length === 0 && (
-                <tr><td colSpan={8} style={{ padding: 30, textAlign: "center", color: "#94A3B8" }}>
+                <tr><td colSpan={10} style={{ padding: 30, textAlign: "center", color: "#94A3B8" }}>
                   Öğrenci yok. "1. Öğrenciler" sekmesinden ekle.
                 </td></tr>
               )}

@@ -42,14 +42,17 @@ export default function PriceBreakevenModel() {
     numCourses, numStudents, hours, pricePerHour, discount, tutorCostPerHour,
     numApps, pricePerAppUsd, usdTry,
     numConsultants, consultantWage, payMode, commissionPct,
+    kocLukHours, kocLukPricePerHour, kocLukTutorCostPerHour,
+    salespersonPct, leadReferrerPct,
     managerWage, fc
   } = useAppContext();
 
   const discountFactor = 1 - discount / 100;
   const kdvRatio = 20 / 120;
   const grossUp = 120 / 100;
+  const commRate = (salespersonPct + leadReferrerPct) / 100;
 
-  // ── Constants (don't depend on pricePerHour) ─────────────────────────────
+  // ── Constants (don't depend on course pricePerHour) ──────────────────────
   const pricePerAppTl = Math.round(pricePerAppUsd * usdTry);
   const totalApps = numApps * numStudents;
   const danRevTotal = totalApps * pricePerAppTl;
@@ -58,19 +61,23 @@ export default function PriceBreakevenModel() {
   const danCstTotal = payMode === "wage"
     ? numConsultants * consultantWage * 12
     : Math.round(danRevTotal * commissionPct / 100);
+  const kocLukRevTotal = numStudents * kocLukHours * kocLukPricePerHour;
+  const kocLukCstTotal = numStudents * kocLukHours * kocLukTutorCostPerHour;
+
   const managerAnnual = managerWage * 12;
-  const totalCst = courseCstTotal + danCstTotal + managerAnnual;
-  const allCostsForBE = totalCst + fc;
+  // R0 = revenue that DOESN'T depend on course price
+  const R0 = kocLukRevTotal + danRevTotal;
+  // C0 = costs that DON'T depend on course price
+  const C0 = courseCstTotal + kocLukCstTotal + danCstTotal + managerAnnual + fc;
 
   // ── Break-even price/hour ────────────────────────────────────────────────
-  // At pre-tax break-even: totalRev × (1 − KDV/120) = totalCst + fc
-  //   totalRev = grossUp × (totalCst + fc)
-  //   = courseRev + danRev  →  courseRev = grossUp × (totalCst + fc) − danRev
-  //   courseRev = a × p,  a = numStudents × numCourses × hours × (1 − discount/100)
-  //   p_BE = (grossUp × (totalCst + fc) − danRev) / a
+  // (a×p + R0)(1 − KDV_ratio) = C0 + a×p × commRate
+  //   → p = [C0 − R0×(1 − KDV_ratio)] / [a × (1 − KDV_ratio − commRate)]
+  //   with (1 − KDV_ratio) = 5/6, → p = [1.2×C0 − R0] / [a × (1 − 1.2×commRate)]
   const a = numStudents * numCourses * hours * discountFactor;
-  const beNum = grossUp * allCostsForBE - danRevTotal;
-  const breakEvenPrice = a > 0 ? beNum / a : Infinity;
+  const denom = a * (1 - grossUp * commRate);
+  const beNum = grossUp * C0 - R0;
+  const breakEvenPrice = denom > 0 ? beNum / denom : Infinity;
   const breakEvenCoursePrice = Number.isFinite(breakEvenPrice)
     ? hours * breakEvenPrice * discountFactor
     : Infinity;
@@ -78,9 +85,11 @@ export default function PriceBreakevenModel() {
   // ── Current net profit (mirrors YearlyModel) ─────────────────────────────
   const avgRev = Math.round(hours * pricePerHour * discountFactor);
   const courseRevTotal = numStudents * numCourses * avgRev;
-  const totalRev = courseRevTotal + danRevTotal;
+  const commissionsTotal = Math.round(courseRevTotal * commRate);
+  const totalRev = courseRevTotal + kocLukRevTotal + danRevTotal;
+  const totalVarCst = courseCstTotal + kocLukCstTotal + danCstTotal + managerAnnual + commissionsTotal;
   const totalKdv = totalRev * kdvRatio;
-  const preTaxProfit = (totalRev - totalCst) - fc - totalKdv;
+  const preTaxProfit = (totalRev - totalVarCst) - fc - totalKdv;
   const corpTax = preTaxProfit > 0 ? preTaxProfit * 0.25 : 0;
   const netProfit = preTaxProfit - corpTax;
 
@@ -96,9 +105,10 @@ export default function PriceBreakevenModel() {
     for (let i = 0; i <= steps; i++) {
       const p = priceLow + i * step;
       const cRev = a * p;
-      const totRev = cRev + danRevTotal;
+      const comm = cRev * commRate;
+      const totRev = cRev + R0;
       const kdv = totRev * kdvRatio;
-      const preTax = (totRev - totalCst) - fc - kdv;
+      const preTax = (totRev - (courseCstTotal + kocLukCstTotal + danCstTotal + managerAnnual + comm)) - fc - kdv;
       const tax = preTax > 0 ? preTax * 0.25 : 0;
       arr.push({
         price: Math.round(p),
@@ -106,26 +116,31 @@ export default function PriceBreakevenModel() {
       });
     }
     return arr;
-  }, [a, danRevTotal, totalCst, fc, priceLow, priceHigh, kdvRatio]);
+  }, [a, R0, courseCstTotal, kocLukCstTotal, danCstTotal, managerAnnual, fc, priceLow, priceHigh, kdvRatio, commRate]);
 
   // ── Chart 2: Break-even price vs # students ──────────────────────────────
   const beVsStudents = useMemo(() => {
     const arr = [];
     for (let n = 1; n <= 50; n++) {
       const danR = (numApps * n) * pricePerAppTl;
+      const kocR = n * kocLukHours * kocLukPricePerHour;
       const ccTot = n * numCourses * hours * tutorCostPerHour;
+      const kocC = n * kocLukHours * kocLukTutorCostPerHour;
       const dCst = payMode === "wage"
         ? numConsultants * consultantWage * 12
         : Math.round(danR * commissionPct / 100);
-      const tCst = ccTot + dCst + managerAnnual;
+      const R0n = danR + kocR;
+      const C0n = ccTot + kocC + dCst + managerAnnual + fc;
       const aN = n * numCourses * hours * discountFactor;
-      const num = grossUp * (tCst + fc) - danR;
-      const beN = aN > 0 ? num / aN : Infinity;
+      const denomN = aN * (1 - grossUp * commRate);
+      const num = grossUp * C0n - R0n;
+      const beN = denomN > 0 ? num / denomN : Infinity;
       arr.push({ n, beP: Number.isFinite(beN) ? Math.max(0, Math.round(beN)) : null });
     }
     return arr;
   }, [numCourses, hours, discountFactor, numApps, pricePerAppTl, tutorCostPerHour,
-      payMode, numConsultants, consultantWage, commissionPct, managerAnnual, fc, grossUp]);
+      payMode, numConsultants, consultantWage, commissionPct, managerAnnual, fc, grossUp,
+      kocLukHours, kocLukPricePerHour, kocLukTutorCostPerHour, commRate]);
 
   // ── Scenario table ───────────────────────────────────────────────────────
   const beRounded = Number.isFinite(breakEvenPrice) ? Math.round(breakEvenPrice) : null;
@@ -137,9 +152,11 @@ export default function PriceBreakevenModel() {
 
   const scenRows = scenarioPrices.map(p => {
     const cRev = a * p;
-    const totRev = cRev + danRevTotal;
+    const comm = Math.round(cRev * commRate);
+    const totRev = cRev + R0;
+    const varCst = courseCstTotal + kocLukCstTotal + danCstTotal + managerAnnual + comm;
     const kdv = totRev * kdvRatio;
-    const preTax = (totRev - totalCst) - fc - kdv;
+    const preTax = (totRev - varCst) - fc - kdv;
     const tax = preTax > 0 ? preTax * 0.25 : 0;
     const net = preTax - tax;
     const coursePrice = hours * p * discountFactor;
