@@ -23,14 +23,14 @@ export default function DetailAnalysisPage() {
     pricePerAppUsd, usdTry,
     numConsultants, consultantWage, payMode, commissionPct,
     kocLukPricePerHour, kocLukTutorCostPerHour,
-    salespersonPct, leadReferrerPct,
+    salespersonPct, leadReferrerAmount,
     managerWage, fc,
     totalMonthlyFc, totalAnnualOneOffFc,
   } = useAppContext();
 
   const pricePerAppTl = Math.round(pricePerAppUsd * usdTry);
   const managerAnnual = managerWage * 12;
-  const commRate = (salespersonPct + leadReferrerPct) / 100;
+  const commRate = salespersonPct / 100;
 
   const courseMap = useMemo(() => {
     const m = {};
@@ -73,9 +73,9 @@ export default function DetailAnalysisPage() {
   const danCstTotal = payMode === "wage"
     ? numConsultants * consultantWage * 12
     : Math.round(totalAppsRev * commissionPct / 100);
-  const commissionsTotal = Math.round(totalCourseRev * commRate);
   const salespersonCstTotal = Math.round(totalCourseRev * salespersonPct / 100);
-  const leadReferrerCstTotal = Math.round(totalCourseRev * leadReferrerPct / 100);
+  const leadReferrerCstTotal = detailStudents.length * leadReferrerAmount;
+  const commissionsTotal = salespersonCstTotal + leadReferrerCstTotal;
 
   const totalRev = totalCourseRev + totalAppsRev + totalKocRev;
   const totalVarCst = totalCourseCst + totalKocCst + danCstTotal + managerAnnual + commissionsTotal;
@@ -116,7 +116,7 @@ export default function DetailAnalysisPage() {
   //   → p_BE = [1.2×C0 − R0] / [a × (1 − 1.2×commRate)]
   // Here a = totalEffectiveHours (if uniform p)
   const R0_bea = totalKocRev + totalAppsRev;
-  const C0_bea = totalCourseCst + totalKocCst + danCstTotal + managerAnnual + fc;
+  const C0_bea = totalCourseCst + totalKocCst + danCstTotal + managerAnnual + leadReferrerCstTotal + fc;
   const denomBea = totalEffectiveHours * (1 - 1.2 * commRate);
   const requiredCourseRev = 1.2 * C0_bea - R0_bea;
   const breakEvenAvgPrice = denomBea > 0 ? requiredCourseRev / denomBea : Infinity;
@@ -237,8 +237,8 @@ export default function DetailAnalysisPage() {
                 { k: "− Eğitmen Gideri", v: -totalCourseCst, col: "#F25C5C" },
                 { k: "− Koç Gideri", v: -totalKocCst, col: "#F25C5C" },
                 { k: `− Danışman Gideri (${payMode === "wage" ? "Maaş" : `Komisyon %${commissionPct}`})`, v: -danCstTotal, col: "#F25C5C" },
-                { k: `− Satışçı Komisyonu (%${salespersonPct})`, v: -salespersonCstTotal, col: "#FB923C" },
-                { k: `− Lead Getirene Komisyon (%${leadReferrerPct})`, v: -leadReferrerCstTotal, col: "#FB923C" },
+                { k: `− Satışçı Komisyonu (%${salespersonPct} × kurs geliri)`, v: -salespersonCstTotal, col: "#FB923C" },
+                { k: `− Lead Getirene Ücret (${detailStudents.length} öğr. × ₺${fmt(leadReferrerAmount)})`, v: -leadReferrerCstTotal, col: "#FB923C" },
                 { k: "− Yönetici Maaşı (yıllık)", v: -managerAnnual, col: "#F25C5C" },
                 { k: "= Brüt Kâr", v: grossProfit, col: grossProfit >= 0 ? "#FFFFFF" : "#F25C5C", bold: true },
                 { k: "− Sabit Giderler (FC)", v: -fc, col: "#FB7185" },
@@ -258,6 +258,35 @@ export default function DetailAnalysisPage() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Lead cost impact */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 18 }}>
+          <div style={{ ...S.card, padding: 16, borderTop: "4px solid #FDBA74" }}>
+            <div style={S.label}>Lead Ücreti (Yıllık)</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: "#FDBA74" }}>₺{fmt(leadReferrerCstTotal)}</div>
+            <div style={{ fontSize: 9, color: "#94A3B8", marginTop: 4 }}>
+              {detailStudents.length} öğr. × ₺{fmt(leadReferrerAmount)}
+            </div>
+          </div>
+          <div style={{ ...S.card, padding: 16, borderTop: "4px solid #FDBA74" }}>
+            <div style={S.label}>Lead → Toplam Satışın Yüzdesi</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: "#FDBA74" }}>
+              %{totalRev > 0 ? (leadReferrerCstTotal / totalRev * 100).toFixed(2) : "0.00"}
+            </div>
+            <div style={{ fontSize: 9, color: "#94A3B8", marginTop: 4 }}>
+              ₺{fmtK(leadReferrerCstTotal)} / ₺{fmtK(totalRev)} toplam gelir
+            </div>
+          </div>
+          <div style={{ ...S.card, padding: 16, borderTop: netProfit > 0 ? "4px solid #FDBA74" : "4px solid #F25C5C" }}>
+            <div style={S.label}>Lead → Net Kârın Yüzdesi</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: netProfit > 0 ? "#FDBA74" : "#F25C5C" }}>
+              {netProfit > 0 ? `%${(leadReferrerCstTotal / netProfit * 100).toFixed(2)}` : "—"}
+            </div>
+            <div style={{ fontSize: 9, color: "#94A3B8", marginTop: 4 }}>
+              {netProfit > 0 ? `₺${fmtK(leadReferrerCstTotal)} / ₺${fmtK(netProfit)} net kâr` : "Zararda: hesaplanamaz"}
+            </div>
+          </div>
         </div>
 
         {/* Chart: per-student contribution */}

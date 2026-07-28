@@ -109,7 +109,7 @@ export default function YearlyModel() {
     numApps, setNumApps, pricePerAppUsd, setPricePerAppUsd, usdTry, setUsdTry, rateStatus, setRateStatus,
     numConsultants, setNumConsultants, consultantWage, setConsultantWage, payMode, setPayMode, commissionPct, setCommissionPct,
     kocLukHours, setKocLukHours, kocLukPricePerHour, setKocLukPricePerHour, kocLukTutorCostPerHour, setKocLukTutorCostPerHour,
-    salespersonPct, setSalespersonPct, leadReferrerPct, setLeadReferrerPct,
+    salespersonPct, setSalespersonPct, leadReferrerAmount, setLeadReferrerAmount,
     managerWage, setManagerWage,
     fcKira, setFcKira, fcKiraStopaj, setFcKiraStopaj, fcDamga, setFcDamga,
     fcSmmm, setFcSmmm, fcSmmmStopaj, setFcSmmmStopaj, fcIto, setFcIto, fcNoter, setFcNoter,
@@ -141,10 +141,9 @@ export default function YearlyModel() {
   const kocLukCstTotal = numStudents * kocLukCstPerStu;
   const kocLukMargin = kocLukRevTotal - kocLukCstTotal;
 
-  // Satış komisyonları (kurs geliri üzerinden)
-  const totalCommissionPct = salespersonPct + leadReferrerPct;
+  // Satış komisyonları
   const salespersonCstTotal = Math.round(numStudents * revPerStu * salespersonPct / 100);
-  const leadReferrerCstTotal = Math.round(numStudents * revPerStu * leadReferrerPct / 100);
+  const leadReferrerCstTotal = numStudents * leadReferrerAmount;  // sabit TL / öğrenci
   const commissionsTotal = salespersonCstTotal + leadReferrerCstTotal;
 
   // Manager annual cost
@@ -175,7 +174,7 @@ export default function YearlyModel() {
   const danVarCstPerStu = payMode === "commission"
     ? Math.round(danRevPerStu * commissionPct / 100)
     : 0;
-  const commPerStu = Math.round(revPerStu * totalCommissionPct / 100);
+  const commPerStu = Math.round(revPerStu * salespersonPct / 100) + leadReferrerAmount;
   const combinedVarCstPerStu = cstPerStu + kocLukCstPerStu + danVarCstPerStu + commPerStu;
 
   const kdvPerStu = combinedRevPerStu * 20 / 120;
@@ -196,7 +195,7 @@ export default function YearlyModel() {
       const courseRev = n * cRevPerStu;
       const kocR = n * kocLukRevPerStu;
       const combinedRev = courseRev + danRevTotal + kocR;
-      const comm = courseRev * totalCommissionPct / 100;
+      const comm = courseRev * salespersonPct / 100 + n * leadReferrerAmount;
       const combinedCst = n * c * avgCst + n * kocLukCstPerStu + danCstTotal + managerAnnual + comm;
       const kdv = combinedRev * 20 / 120;
       const preTax = (combinedRev - combinedCst) - fc - kdv;
@@ -204,7 +203,7 @@ export default function YearlyModel() {
       row[`C${c}`] = preTax - tax;
     }
     return row;
-  }), [fc, avgRev, avgCst, danRevTotal, danCstTotal, managerAnnual, maxN, kocLukRevPerStu, kocLukCstPerStu, totalCommissionPct]);
+  }), [fc, avgRev, avgCst, danRevTotal, danCstTotal, managerAnnual, maxN, kocLukRevPerStu, kocLukCstPerStu, salespersonPct, leadReferrerAmount]);
 
   // Scenario rows
   const scenarioNs = [...new Set([1, 3, 5, 8, 10, 15, 20, 25, 30, numStudents])].sort((a, b) => a - b);
@@ -212,7 +211,7 @@ export default function YearlyModel() {
     const cRev = n * revPerStu;
     const kocR = n * kocLukRevPerStu;
     const combinedRev = cRev + danRevTotal + kocR;
-    const comm = Math.round(cRev * totalCommissionPct / 100);
+    const comm = Math.round(cRev * salespersonPct / 100) + n * leadReferrerAmount;
     const combinedCst = n * cstPerStu + n * kocLukCstPerStu + danCstTotal + managerAnnual + comm;
     const kdv = combinedRev * 20 / 120;
     const preTax = (combinedRev - combinedCst) - fc - kdv;
@@ -569,11 +568,11 @@ export default function YearlyModel() {
 
       {/* ── 3.6. Satış Komisyonları ── */}
       <div style={S.sectionTitle}>
-        3.6 Satış Komisyonları (Sadece Kurs Geliri Üzerinden)
+        3.6 Satış Komisyonları
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
         <div style={{ ...S.card, padding: 16 }}>
-          <div style={S.label}>Satışçı Komisyonu (%)</div>
+          <div style={S.label}>Satışçı Komisyonu (Kurs Geliri Üzerinden %)</div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <input type="range" min={0} max={30} step={0.5} value={salespersonPct}
               onChange={e => setSalespersonPct(+e.target.value)}
@@ -585,31 +584,39 @@ export default function YearlyModel() {
           </div>
         </div>
         <div style={{ ...S.card, padding: 16 }}>
-          <div style={S.label}>Lead Getirene Komisyon (%)</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <input type="range" min={0} max={20} step={0.5} value={leadReferrerPct}
-              onChange={e => setLeadReferrerPct(+e.target.value)}
-              style={{ flex: 1, accentColor: "#FDBA74", cursor: "pointer", height: 6 }} />
-            <span style={{ fontSize: 24, fontWeight: 700, color: "#FDBA74", minWidth: 60, textAlign: "center" }}>%{leadReferrerPct}</span>
-          </div>
+          <div style={S.label}>Lead Getirene Ücret (Öğrenci Başı ₺)</div>
+          <input type="number" min={0} value={leadReferrerAmount}
+            onChange={e => setLeadReferrerAmount(+e.target.value)}
+            style={{ ...S.input, fontSize: 20, color: "#FDBA74" }} />
           <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 4 }}>
-            = ₺{fmt(leadReferrerCstTotal)} yıllık
+            {numStudents} öğr. × ₺{fmt(leadReferrerAmount)} = <span style={{ color: "#FDBA74" }}>₺{fmt(leadReferrerCstTotal)}</span> yıllık
           </div>
         </div>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 20 }}>
-        <div style={{ ...S.card, padding: 16, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-          <div style={S.label}>Toplam Komisyon Oranı</div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: "#FB923C" }}>%{totalCommissionPct.toFixed(1)}</div>
-          <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 2 }}>
-            Kurs gelirinin %{totalCommissionPct.toFixed(1)}'i satış + lead
-          </div>
-        </div>
-        <div style={{ ...S.card, padding: 16, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 20 }}>
+        <div style={{ ...S.card, padding: 16 }}>
           <div style={S.label}>Toplam Komisyon Tutarı</div>
           <div style={{ fontSize: 22, fontWeight: 700, color: "#F25C5C" }}>₺{fmt(commissionsTotal)}</div>
           <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 2 }}>
             Satışçı ₺{fmt(salespersonCstTotal)} + Lead ₺{fmt(leadReferrerCstTotal)}
+          </div>
+        </div>
+        <div style={{ ...S.card, padding: 16 }}>
+          <div style={S.label}>Lead → Toplam Satışın Yüzdesi</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: "#FDBA74" }}>
+            %{totalRev > 0 ? (leadReferrerCstTotal / totalRev * 100).toFixed(2) : "0.00"}
+          </div>
+          <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 2 }}>
+            ₺{fmt(leadReferrerCstTotal)} / ₺{fmt(totalRev)}
+          </div>
+        </div>
+        <div style={{ ...S.card, padding: 16 }}>
+          <div style={S.label}>Lead → Net Kârın Yüzdesi</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: netProfit > 0 ? "#FDBA74" : "#F25C5C" }}>
+            {netProfit > 0 ? `%${(leadReferrerCstTotal / netProfit * 100).toFixed(2)}` : "—"}
+          </div>
+          <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 2 }}>
+            {netProfit > 0 ? `₺${fmt(leadReferrerCstTotal)} / ₺${fmt(netProfit)}` : "Zararda: hesaplanamaz"}
           </div>
         </div>
       </div>
