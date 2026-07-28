@@ -55,7 +55,7 @@ export default function DetailStudentsPage() {
     detailStudents, setDetailStudents,
     detailCourses,
     pricePerAppUsd, usdTry,
-    kocLukPricePerHour, kocLukTutorCostPerHour,
+    kocLukTutorCostPerHour,
   } = useAppContext();
 
   const pricePerAppTl = Math.round(pricePerAppUsd * usdTry);
@@ -77,13 +77,12 @@ export default function DetailStudentsPage() {
     const apps = s.numApps || 0;
     const appsRev = apps * pricePerAppTl;
     const kocH = s.kocLukHours || 0;
-    const kocRev = kocH * kocLukPricePerHour;
     const kocCst = kocH * kocLukTutorCostPerHour;
     return {
       rev, cst, courseMargin: rev - cst,
       appsRev,
-      kocH, kocRev, kocCst, kocMargin: kocRev - kocCst,
-      totalRev: rev + appsRev + kocRev,
+      kocH, kocCst,
+      totalRev: rev + appsRev,  // koçluk gelirinin ders satış fiyatında içerildiği kabul edilir
     };
   };
 
@@ -115,10 +114,10 @@ export default function DetailStudentsPage() {
     acc.courseRev += x.rev;
     acc.courseCst += x.cst;
     acc.appsRev += x.appsRev;
-    acc.kocRev += x.kocRev;
+    acc.kocCst += x.kocCst;
     acc.totalRev += x.totalRev;
     return acc;
-  }, { courseRev: 0, courseCst: 0, appsRev: 0, kocRev: 0, totalRev: 0 });
+  }, { courseRev: 0, courseCst: 0, appsRev: 0, kocCst: 0, totalRev: 0 });
 
   return (
     <>
@@ -144,12 +143,12 @@ export default function DetailStudentsPage() {
             <div style={{ fontSize: 22, fontWeight: 700, color: "#FFFFFF" }}>{detailStudents.length}</div>
           </div>
           <div style={{ ...S.card, padding: 14 }}>
-            <div style={S.label}>Kurs Geliri</div>
+            <div style={S.label}>Kurs Geliri (Koçluk Dahil)</div>
             <div style={{ fontSize: 22, fontWeight: 700, color: "#037A7A" }}>₺{fmt(totals.courseRev)}</div>
           </div>
           <div style={{ ...S.card, padding: 14 }}>
-            <div style={S.label}>Koçluk Geliri</div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: "#8B5CF6" }}>₺{fmt(totals.kocRev)}</div>
+            <div style={S.label}>Koç Gideri</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: "#F472B6" }}>₺{fmt(totals.kocCst)}</div>
           </div>
           <div style={{ ...S.card, padding: 14 }}>
             <div style={S.label}>Danışmanlık Geliri</div>
@@ -184,8 +183,8 @@ export default function DetailStudentsPage() {
                   <input type="number" min={0} value={s.kocLukHours || 0}
                     onChange={e => update(s.id, { kocLukHours: Math.max(0, parseFloat(e.target.value) || 0) })}
                     style={S.numInput} />
-                  <span style={{ fontSize: 10, color: "#8B5CF6", marginLeft: 8 }}>
-                    ₺{fmt(calc.kocRev)}
+                  <span style={{ fontSize: 10, color: "#F472B6", marginLeft: 8 }}>
+                    Koç Gid. ₺{fmt(calc.kocCst)}
                   </span>
                 </div>
                 <div>
@@ -232,15 +231,13 @@ export default function DetailStudentsPage() {
                   <div style={{ fontSize: 15, fontWeight: 700, color: "#F25C5C" }}>₺{fmt(calc.cst)}</div>
                 </div>
                 <div>
-                  <div style={S.label}>Kurs Marjini</div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: calc.courseMargin >= 0 ? "#048C8C" : "#F25C5C" }}>
-                    ₺{fmt(calc.courseMargin)}
-                  </div>
+                  <div style={S.label}>Koç Gideri</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "#F472B6" }}>₺{fmt(calc.kocCst)}</div>
                 </div>
                 <div>
-                  <div style={S.label}>Koçluk Marjini</div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: calc.kocMargin >= 0 ? "#8B5CF6" : "#F25C5C" }}>
-                    ₺{fmt(calc.kocMargin)}
+                  <div style={S.label}>Kurs Marjini (Koç Sonrası)</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: (calc.courseMargin - calc.kocCst) >= 0 ? "#048C8C" : "#F25C5C" }}>
+                    ₺{fmt(calc.courseMargin - calc.kocCst)}
                   </div>
                 </div>
                 <div>

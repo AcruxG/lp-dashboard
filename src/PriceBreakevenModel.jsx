@@ -42,7 +42,7 @@ export default function PriceBreakevenModel() {
     numCourses, numStudents, hours, pricePerHour, discount, tutorCostPerHour,
     numApps, pricePerAppUsd, usdTry,
     numConsultants, consultantWage, payMode, commissionPct,
-    kocLukHours, kocLukPricePerHour, kocLukTutorCostPerHour,
+    kocLukHours, kocLukTutorCostPerHour,
     salespersonAmount, leadReferrerAmount,
     managerWage, fc
   } = useAppContext();
@@ -62,7 +62,6 @@ export default function PriceBreakevenModel() {
   const danCstTotal = payMode === "wage"
     ? numConsultants * consultantWage * 12
     : Math.round(danRevTotal * commissionPct / 100);
-  const kocLukRevTotal = numStudents * kocLukHours * kocLukPricePerHour;
   const kocLukCstTotal = numStudents * kocLukHours * kocLukTutorCostPerHour;
 
   const managerAnnual = managerWage * 12;
@@ -71,7 +70,7 @@ export default function PriceBreakevenModel() {
   const leadReferrerCstTotal = totalCourseSales * leadReferrerAmount;
   const commissionsFixed = salespersonCstTotal + leadReferrerCstTotal;
   // R0 = revenue that DOESN'T depend on course price
-  const R0 = kocLukRevTotal + danRevTotal;
+  const R0 = danRevTotal;  // sadece danışmanlık; koçluk zaten ders fiyatına dahil
   // C0 = costs that DON'T depend on course price (both commissions are fixed TL per course sold)
   const C0 = courseCstTotal + kocLukCstTotal + danCstTotal + managerAnnual + commissionsFixed + fc;
 
@@ -91,7 +90,7 @@ export default function PriceBreakevenModel() {
   const avgRev = Math.round(hours * pricePerHour * discountFactor);
   const courseRevTotal = numStudents * numCourses * avgRev;
   const commissionsTotal = commissionsFixed;
-  const totalRev = courseRevTotal + kocLukRevTotal + danRevTotal;
+  const totalRev = courseRevTotal + danRevTotal;
   const totalVarCst = courseCstTotal + kocLukCstTotal + danCstTotal + managerAnnual + commissionsTotal;
   const totalKdv = totalRev * kdvRatio;
   const preTaxProfit = (totalRev - totalVarCst) - fc - totalKdv;
@@ -127,14 +126,13 @@ export default function PriceBreakevenModel() {
     const arr = [];
     for (let n = 1; n <= 50; n++) {
       const danR = (numApps * n) * pricePerAppTl;
-      const kocR = n * kocLukHours * kocLukPricePerHour;
       const ccTot = n * numCourses * hours * tutorCostPerHour;
       const kocC = n * kocLukHours * kocLukTutorCostPerHour;
       const commC = n * numCourses * (salespersonAmount + leadReferrerAmount);
       const dCst = payMode === "wage"
         ? numConsultants * consultantWage * 12
         : Math.round(danR * commissionPct / 100);
-      const R0n = danR + kocR;
+      const R0n = danR;
       const C0n = ccTot + kocC + dCst + managerAnnual + commC + fc;
       const aN = n * numCourses * hours * discountFactor;
       const num = grossUp * C0n - R0n;
@@ -144,7 +142,7 @@ export default function PriceBreakevenModel() {
     return arr;
   }, [numCourses, hours, discountFactor, numApps, pricePerAppTl, tutorCostPerHour,
       payMode, numConsultants, consultantWage, commissionPct, managerAnnual, fc, grossUp,
-      kocLukHours, kocLukPricePerHour, kocLukTutorCostPerHour, salespersonAmount, leadReferrerAmount]);
+      kocLukHours, kocLukTutorCostPerHour, salespersonAmount, leadReferrerAmount]);
 
   // ── Scenario table ───────────────────────────────────────────────────────
   const beRounded = Number.isFinite(breakEvenPrice) ? Math.round(breakEvenPrice) : null;

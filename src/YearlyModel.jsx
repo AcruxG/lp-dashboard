@@ -108,7 +108,7 @@ export default function YearlyModel() {
     pricePerHour, setPricePerHour, discount, setDiscount, tutorCostPerHour, setTutorCostPerHour,
     numApps, setNumApps, pricePerAppUsd, setPricePerAppUsd, usdTry, setUsdTry, rateStatus, setRateStatus,
     numConsultants, setNumConsultants, consultantWage, setConsultantWage, payMode, setPayMode, commissionPct, setCommissionPct,
-    kocLukHours, setKocLukHours, kocLukPricePerHour, setKocLukPricePerHour, kocLukTutorCostPerHour, setKocLukTutorCostPerHour,
+    kocLukHours, setKocLukHours, kocLukTutorCostPerHour, setKocLukTutorCostPerHour,
     salespersonAmount, setSalespersonAmount, leadReferrerAmount, setLeadReferrerAmount,
     managerWage, setManagerWage,
     fcKira, setFcKira, fcKiraStopaj, setFcKiraStopaj, fcDamga, setFcDamga,
@@ -134,12 +134,9 @@ export default function YearlyModel() {
     : Math.round(danRevTotal * commissionPct / 100);
   const danMargin = danRevTotal - danCstTotal;
 
-  // Koçluk (saatlik akademik koçluk)
-  const kocLukRevPerStu = kocLukHours * kocLukPricePerHour;
+  // Koçluk — sadece maliyet (satış ders fiyatının içinde)
   const kocLukCstPerStu = kocLukHours * kocLukTutorCostPerHour;
-  const kocLukRevTotal = numStudents * kocLukRevPerStu;
   const kocLukCstTotal = numStudents * kocLukCstPerStu;
-  const kocLukMargin = kocLukRevTotal - kocLukCstTotal;
 
   // Satış komisyonları (her ikisi de ders başı sabit TL — satılan ders sayısıyla ölçeklenir)
   const totalCourseSales = numStudents * numCourses;
@@ -155,7 +152,7 @@ export default function YearlyModel() {
   const courseCstTotal = numStudents * cstPerStu;
   const courseGross = numStudents * margPerStu;
 
-  const totalRev = courseRevTotal + danRevTotal + kocLukRevTotal;
+  const totalRev = courseRevTotal + danRevTotal;
   const totalCst = courseCstTotal + danCstTotal + kocLukCstTotal + managerAnnual + commissionsTotal;
   const totalGross = totalRev - totalCst;
 
@@ -170,7 +167,7 @@ export default function YearlyModel() {
 
   // Break-even calculation (per-student net margin)
   const danRevPerStu = numApps * pricePerAppTl;
-  const combinedRevPerStu = revPerStu + kocLukRevPerStu + danRevPerStu;
+  const combinedRevPerStu = revPerStu + danRevPerStu;
 
   const danVarCstPerStu = payMode === "commission"
     ? Math.round(danRevPerStu * commissionPct / 100)
@@ -194,8 +191,7 @@ export default function YearlyModel() {
     for (let c = 1; c <= 8; c++) {
       const cRevPerStu = c * avgRev;
       const courseRev = n * cRevPerStu;
-      const kocR = n * kocLukRevPerStu;
-      const combinedRev = courseRev + danRevTotal + kocR;
+      const combinedRev = courseRev + danRevTotal;
       const comm = n * c * (salespersonAmount + leadReferrerAmount);
       const combinedCst = n * c * avgCst + n * kocLukCstPerStu + danCstTotal + managerAnnual + comm;
       const kdv = combinedRev * 20 / 120;
@@ -204,14 +200,13 @@ export default function YearlyModel() {
       row[`C${c}`] = preTax - tax;
     }
     return row;
-  }), [fc, avgRev, avgCst, danRevTotal, danCstTotal, managerAnnual, maxN, kocLukRevPerStu, kocLukCstPerStu, salespersonAmount, leadReferrerAmount]);
+  }), [fc, avgRev, avgCst, danRevTotal, danCstTotal, managerAnnual, maxN, kocLukCstPerStu, salespersonAmount, leadReferrerAmount]);
 
   // Scenario rows
   const scenarioNs = [...new Set([1, 3, 5, 8, 10, 15, 20, 25, 30, numStudents])].sort((a, b) => a - b);
   const scenRows = scenarioNs.map(n => {
     const cRev = n * revPerStu;
-    const kocR = n * kocLukRevPerStu;
-    const combinedRev = cRev + danRevTotal + kocR;
+    const combinedRev = cRev + danRevTotal;
     const comm = n * numCourses * (salespersonAmount + leadReferrerAmount);
     const combinedCst = n * cstPerStu + n * kocLukCstPerStu + danCstTotal + managerAnnual + comm;
     const kdv = combinedRev * 20 / 120;
@@ -231,8 +226,7 @@ export default function YearlyModel() {
   });
 
   const gelirData = [
-    { name: "Kurs Geliri", value: courseRevTotal, color: "#048C8C" },
-    { name: "Koçluk Geliri", value: kocLukRevTotal, color: "#8B5CF6" },
+    { name: "Kurs Geliri (Koçluk Dahil)", value: courseRevTotal, color: "#048C8C" },
     { name: "Danışmanlık Geliri", value: danRevTotal, color: "#38BDF8" }
   ].filter(d => d.value > 0);
 
@@ -515,9 +509,9 @@ export default function YearlyModel() {
 
       {/* ── 3.5. Koçluk Ayarları ── */}
       <div style={S.sectionTitle}>
-        3.5 Koçluk Ayarları (Saatlik Akademik Koçluk)
+        3.5 Koçluk Gideri (Satış Ders Fiyatına Dahil)
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 20 }}>
         <div style={{ ...S.card, padding: 16 }}>
           <div style={S.label}>Öğrenci Başı Koçluk Saati</div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -529,40 +523,17 @@ export default function YearlyModel() {
           <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 4 }}>Saat / öğrenci</div>
         </div>
         <div style={{ ...S.card, padding: 16 }}>
-          <div style={S.label}>Koçluk Saat Fiyatı (₺)</div>
-          <input type="number" min={0} value={kocLukPricePerHour}
-            onChange={e => setKocLukPricePerHour(+e.target.value)}
-            style={{ ...S.input, fontSize: 16 }} />
-          <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 4 }}>Öğrenciye satış fiyatı</div>
-        </div>
-        <div style={{ ...S.card, padding: 16 }}>
           <div style={S.label}>Koç Saat Ücreti (₺)</div>
           <input type="number" min={0} value={kocLukTutorCostPerHour}
             onChange={e => setKocLukTutorCostPerHour(+e.target.value)}
             style={{ ...S.input, fontSize: 16 }} />
           <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 4 }}>Koça ödenen saat başı</div>
         </div>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 20 }}>
         <div style={{ ...S.card, padding: 16, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-          <div style={S.label}>Koçluk Geliri</div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: "#8B5CF6" }}>₺{fmt(kocLukRevTotal)}</div>
-          <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 2 }}>
-            {numStudents} öğr. × {kocLukHours} saat × ₺{fmt(kocLukPricePerHour)}
-          </div>
-        </div>
-        <div style={{ ...S.card, padding: 16, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-          <div style={S.label}>Koç Gideri</div>
+          <div style={S.label}>Toplam Koç Gideri</div>
           <div style={{ fontSize: 22, fontWeight: 700, color: "#F25C5C" }}>₺{fmt(kocLukCstTotal)}</div>
           <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 2 }}>
             {numStudents * kocLukHours} saat × ₺{fmt(kocLukTutorCostPerHour)}
-          </div>
-        </div>
-        <div style={{ ...S.card, padding: 16, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-          <div style={S.label}>Koçluk Marjini</div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: kocLukMargin >= 0 ? "#048C8C" : "#F25C5C" }}>₺{fmt(kocLukMargin)}</div>
-          <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 2 }}>
-            Marjin oranı: {kocLukRevTotal > 0 ? ((kocLukMargin / kocLukRevTotal) * 100).toFixed(1) : 0}%
           </div>
         </div>
       </div>
@@ -669,7 +640,7 @@ export default function YearlyModel() {
           <div>
             <div style={S.label}>Toplam Gelir</div>
             <div style={{ fontSize: 20, fontWeight: 700, color: "#037A7A" }}>₺{fmt(totalRev)}</div>
-            <div style={{ fontSize: 9, color: "#94A3B8" }}>Kurs ₺{fmt(courseRevTotal)} + Koç. ₺{fmt(kocLukRevTotal)} + Dan. ₺{fmt(danRevTotal)}</div>
+            <div style={{ fontSize: 9, color: "#94A3B8" }}>Kurs (koç. dahil) ₺{fmt(courseRevTotal)} + Dan. ₺{fmt(danRevTotal)}</div>
           </div>
           <div>
             <div style={S.label}>Toplam Gider</div>

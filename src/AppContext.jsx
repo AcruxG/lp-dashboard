@@ -43,8 +43,8 @@ export const AppProvider = ({ children }) => {
   const [commissionPct, setCommissionPct] = useState(20);
 
   // Koçluk (hocalık gibi saatlik akademik koçluk)
+  // NOT: Koçluk satış fiyatı ders satış fiyatının içindedir — sadece gider tarafı modellenir.
   const [kocLukHours, setKocLukHours] = useState(20);          // öğrenci başı ortalama saat (Yıllık)
-  const [kocLukPricePerHour, setKocLukPricePerHour] = useState(3000);
   const [kocLukTutorCostPerHour, setKocLukTutorCostPerHour] = useState(2000);
 
   // Satış komisyonları (her ikisi de ders başı sabit TL — satılan ders sayısıyla ölçeklenir)
@@ -113,7 +113,6 @@ export const AppProvider = ({ children }) => {
     commissionPct, setCommissionPct,
     // Koçluk
     kocLukHours, setKocLukHours,
-    kocLukPricePerHour, setKocLukPricePerHour,
     kocLukTutorCostPerHour, setKocLukTutorCostPerHour,
     // Satış komisyonları
     salespersonAmount, setSalespersonAmount,

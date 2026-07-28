@@ -18,7 +18,7 @@ export default function MonthlyModel() {
   const {
     numCourses, numStudents, hours, pricePerHour, discount, tutorCostPerHour,
     numApps, pricePerAppUsd, usdTry, numConsultants, consultantWage, payMode, commissionPct,
-    kocLukHours, kocLukPricePerHour, kocLukTutorCostPerHour,
+    kocLukHours, kocLukTutorCostPerHour,
     salespersonAmount, leadReferrerAmount,
     managerWage, totalMonthlyFc, totalAnnualOneOffFc, fcKurulus, fcDamga, fcIto, fcNoter
   } = useAppContext();
@@ -37,14 +37,13 @@ export default function MonthlyModel() {
       ? numConsultants * consultantWage * 12
       : Math.round(danRevTotal * commissionPct / 100);
 
-    const kocLukRevTotal = numStudents * kocLukHours * kocLukPricePerHour;
     const kocLukCstTotal = numStudents * kocLukHours * kocLukTutorCostPerHour;
 
     const courseRevTotal = numStudents * revPerStu;
     const courseCstTotal = numStudents * cstPerStu;
     const commissionsTotal = numStudents * numCourses * (salespersonAmount + leadReferrerAmount);
 
-    const totalAnnualRev = courseRevTotal + danRevTotal + kocLukRevTotal;
+    const totalAnnualRev = courseRevTotal + danRevTotal;
     const totalAnnualVarCst = courseCstTotal + danCstTotal + kocLukCstTotal + commissionsTotal;
 
     // Distribute evenly over 12 months
@@ -90,7 +89,7 @@ export default function MonthlyModel() {
   }, [
     numCourses, numStudents, hours, pricePerHour, discount, tutorCostPerHour,
     numApps, pricePerAppUsd, usdTry, numConsultants, consultantWage, payMode, commissionPct,
-    kocLukHours, kocLukPricePerHour, kocLukTutorCostPerHour, salespersonAmount, leadReferrerAmount,
+    kocLukHours, kocLukTutorCostPerHour, salespersonAmount, leadReferrerAmount,
     managerWage, totalMonthlyFc, totalAnnualOneOffFc
   ]);
 
