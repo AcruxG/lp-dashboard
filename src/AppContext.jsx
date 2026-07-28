@@ -28,12 +28,12 @@ export const AppProvider = ({ children }) => {
   const [numCourses, setNumCourses] = useState(3);
   const [numStudents, setNumStudents] = useState(10);
   const [hours, setHours] = useState(40);
-  const [pricePerHour, setPricePerHour] = useState(4000);
-  const [discount, setDiscount] = useState(10);
-  const [tutorCostPerHour, setTutorCostPerHour] = useState(2000);
-  
+  const [pricePerHour, setPricePerHour] = useState(5500);
+  const [discount, setDiscount] = useState(0);
+  const [tutorCostPerHour, setTutorCostPerHour] = useState(2500);
+
   // Danışmanlık (üniversite başvuru danışmanlığı)
-  const [numApps, setNumApps] = useState(5);
+  const [numApps, setNumApps] = useState(0);
   const [pricePerAppUsd, setPricePerAppUsd] = useState(700);
   const [usdTry, setUsdTry] = useState(38);
   const [rateStatus, setRateStatus] = useState("loading");
@@ -45,14 +45,14 @@ export const AppProvider = ({ children }) => {
   // Koçluk (hocalık gibi saatlik akademik koçluk)
   // NOT: Koçluk satış fiyatı ders satış fiyatının içindedir — sadece gider tarafı modellenir.
   const [kocLukHours, setKocLukHours] = useState(20);          // öğrenci başı ortalama saat (Yıllık)
-  const [kocLukTutorCostPerHour, setKocLukTutorCostPerHour] = useState(2000);
+  const [kocLukTutorCostPerHour, setKocLukTutorCostPerHour] = useState(2500);
 
   // Satış komisyonları (her ikisi de ders başı sabit TL — satılan ders sayısıyla ölçeklenir)
-  const [salespersonAmount, setSalespersonAmount] = useState(10000);   // satışçıya ders başı TL
-  const [leadReferrerAmount, setLeadReferrerAmount] = useState(3000);  // lead getirene ders başı TL
+  const [salespersonAmount, setSalespersonAmount] = useState(100);   // satışçıya ders başı TL
+  const [leadReferrerAmount, setLeadReferrerAmount] = useState(100);  // lead getirene ders başı TL
 
   // Manager
-  const [managerWage, setManagerWage] = useState(50000);
+  const [managerWage, setManagerWage] = useState(28000);
 
   // Detailed Fixed Costs
   const [fcKira, setFcKira] = useState(0);
