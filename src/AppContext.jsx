@@ -47,9 +47,9 @@ export const AppProvider = ({ children }) => {
   const [kocLukPricePerHour, setKocLukPricePerHour] = useState(3000);
   const [kocLukTutorCostPerHour, setKocLukTutorCostPerHour] = useState(2000);
 
-  // Satış komisyonları
-  const [salespersonPct, setSalespersonPct] = useState(10);        // satışçı: kurs geliri % komisyon
-  const [leadReferrerAmount, setLeadReferrerAmount] = useState(5000); // lead getiren: öğrenci başı sabit TL
+  // Satış komisyonları (her ikisi de ders başı sabit TL — satılan ders sayısıyla ölçeklenir)
+  const [salespersonAmount, setSalespersonAmount] = useState(10000);   // satışçıya ders başı TL
+  const [leadReferrerAmount, setLeadReferrerAmount] = useState(3000);  // lead getirene ders başı TL
 
   // Manager
   const [managerWage, setManagerWage] = useState(50000);
@@ -116,7 +116,7 @@ export const AppProvider = ({ children }) => {
     kocLukPricePerHour, setKocLukPricePerHour,
     kocLukTutorCostPerHour, setKocLukTutorCostPerHour,
     // Satış komisyonları
-    salespersonPct, setSalespersonPct,
+    salespersonAmount, setSalespersonAmount,
     leadReferrerAmount, setLeadReferrerAmount,
     managerWage, setManagerWage,
     // Detailed FC

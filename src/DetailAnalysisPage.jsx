@@ -23,14 +23,13 @@ export default function DetailAnalysisPage() {
     pricePerAppUsd, usdTry,
     numConsultants, consultantWage, payMode, commissionPct,
     kocLukPricePerHour, kocLukTutorCostPerHour,
-    salespersonPct, leadReferrerAmount,
+    salespersonAmount, leadReferrerAmount,
     managerWage, fc,
     totalMonthlyFc, totalAnnualOneOffFc,
   } = useAppContext();
 
   const pricePerAppTl = Math.round(pricePerAppUsd * usdTry);
   const managerAnnual = managerWage * 12;
-  const commRate = salespersonPct / 100;
 
   const courseMap = useMemo(() => {
     const m = {};
@@ -73,8 +72,10 @@ export default function DetailAnalysisPage() {
   const danCstTotal = payMode === "wage"
     ? numConsultants * consultantWage * 12
     : Math.round(totalAppsRev * commissionPct / 100);
-  const salespersonCstTotal = Math.round(totalCourseRev * salespersonPct / 100);
-  const leadReferrerCstTotal = detailStudents.length * leadReferrerAmount;
+  // Both commissions: ders başı sabit TL — toplam atama sayısıyla ölçeklenir
+  const totalCourseSalesCount = detailStudents.reduce((a, s) => a + s.courseIds.length, 0);
+  const salespersonCstTotal = totalCourseSalesCount * salespersonAmount;
+  const leadReferrerCstTotal = totalCourseSalesCount * leadReferrerAmount;
   const commissionsTotal = salespersonCstTotal + leadReferrerCstTotal;
 
   const totalRev = totalCourseRev + totalAppsRev + totalKocRev;
@@ -110,16 +111,12 @@ export default function DetailAnalysisPage() {
   const avgDiscount = totalHoursAssigned > 0 ? weightedDiscountSum / totalHoursAssigned : 0;
   const currentAvgCoursePrice = totalAssignments > 0 ? totalCourseRev / totalAssignments : 0;
 
-  // Break-even avg price/hour
-  // R = a×p + R0 (koçluk + danışmanlık); C_var = C0 + a×p × commRate
-  // (a×p + R0)(1 − KDV) = C0 + a×p × commRate
-  //   → p_BE = [1.2×C0 − R0] / [a × (1 − 1.2×commRate)]
-  // Here a = totalEffectiveHours (if uniform p)
+  // Break-even avg price/hour — komisyonlar (satışçı+lead) ders başı sabit, C0'a girer, commRate = 0
+  //   p_BE = [1.2×C0 − R0] / a,  where a = totalEffectiveHours (if uniform p)
   const R0_bea = totalKocRev + totalAppsRev;
-  const C0_bea = totalCourseCst + totalKocCst + danCstTotal + managerAnnual + leadReferrerCstTotal + fc;
-  const denomBea = totalEffectiveHours * (1 - 1.2 * commRate);
+  const C0_bea = totalCourseCst + totalKocCst + danCstTotal + managerAnnual + commissionsTotal + fc;
   const requiredCourseRev = 1.2 * C0_bea - R0_bea;
-  const breakEvenAvgPrice = denomBea > 0 ? requiredCourseRev / denomBea : Infinity;
+  const breakEvenAvgPrice = totalEffectiveHours > 0 ? requiredCourseRev / totalEffectiveHours : Infinity;
   // Break-even avg course price = breakEvenPrice × avg(effective hours per assignment)
   const breakEvenAvgCoursePrice = Number.isFinite(breakEvenAvgPrice) && totalAssignments > 0
     ? breakEvenAvgPrice * (totalEffectiveHours / totalAssignments)
@@ -154,7 +151,7 @@ export default function DetailAnalysisPage() {
     return perStudent.map(s => {
       const revShare = totalRev > 0 ? s.totalRev / totalRev : 0;
       const danCommShare = payMode === "commission" ? Math.round(s.appsRev * commissionPct / 100) : 0;
-      const salesCommShare = Math.round(s.courseRev * commRate);
+      const salesCommShare = s.courseIds.length * (salespersonAmount + leadReferrerAmount);
       const kdvShare = s.totalRev * 20 / 120;
       const fixedShare = fixedTotal * revShare;
       const preTax = s.totalRev - s.courseCst - s.kocCst - danCommShare - salesCommShare - kdvShare - fixedShare;
@@ -164,7 +161,7 @@ export default function DetailAnalysisPage() {
         netKatki: Math.round(preTax),
       };
     });
-  }, [perStudent, totalRev, fc, managerAnnual, numConsultants, consultantWage, payMode, commissionPct, commRate]);
+  }, [perStudent, totalRev, fc, managerAnnual, numConsultants, consultantWage, payMode, commissionPct, salespersonAmount, leadReferrerAmount]);
 
   return (
     <>
@@ -237,8 +234,8 @@ export default function DetailAnalysisPage() {
                 { k: "− Eğitmen Gideri", v: -totalCourseCst, col: "#F25C5C" },
                 { k: "− Koç Gideri", v: -totalKocCst, col: "#F25C5C" },
                 { k: `− Danışman Gideri (${payMode === "wage" ? "Maaş" : `Komisyon %${commissionPct}`})`, v: -danCstTotal, col: "#F25C5C" },
-                { k: `− Satışçı Komisyonu (%${salespersonPct} × kurs geliri)`, v: -salespersonCstTotal, col: "#FB923C" },
-                { k: `− Lead Getirene Ücret (${detailStudents.length} öğr. × ₺${fmt(leadReferrerAmount)})`, v: -leadReferrerCstTotal, col: "#FB923C" },
+                { k: `− Satışçı Komisyonu (${totalCourseSalesCount} ders × ₺${fmt(salespersonAmount)})`, v: -salespersonCstTotal, col: "#FB923C" },
+                { k: `− Lead Getirene Ücret (${totalCourseSalesCount} ders × ₺${fmt(leadReferrerAmount)})`, v: -leadReferrerCstTotal, col: "#FB923C" },
                 { k: "− Yönetici Maaşı (yıllık)", v: -managerAnnual, col: "#F25C5C" },
                 { k: "= Brüt Kâr", v: grossProfit, col: grossProfit >= 0 ? "#FFFFFF" : "#F25C5C", bold: true },
                 { k: "− Sabit Giderler (FC)", v: -fc, col: "#FB7185" },
@@ -260,33 +257,39 @@ export default function DetailAnalysisPage() {
           </table>
         </div>
 
-        {/* Lead cost impact */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 18 }}>
-          <div style={{ ...S.card, padding: 16, borderTop: "4px solid #FDBA74" }}>
-            <div style={S.label}>Lead Ücreti (Yıllık)</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: "#FDBA74" }}>₺{fmt(leadReferrerCstTotal)}</div>
-            <div style={{ fontSize: 9, color: "#94A3B8", marginTop: 4 }}>
-              {detailStudents.length} öğr. × ₺{fmt(leadReferrerAmount)}
+        {/* Commissions impact */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+          {[
+            { role: "Satışçı", col: "#FB923C", amt: salespersonAmount, tot: salespersonCstTotal },
+            { role: "Lead Getiren", col: "#FDBA74", amt: leadReferrerAmount, tot: leadReferrerCstTotal }
+          ].map(r => (
+            <div key={r.role} style={{ ...S.card, padding: 16, borderLeft: `4px solid ${r.col}` }}>
+              <div style={S.label}>{r.role} — Yıllık Komisyon</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginTop: 6 }}>
+                <div>
+                  <div style={{ fontSize: 10, color: "#94A3B8" }}>Toplam ₺</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: r.col }}>₺{fmt(r.tot)}</div>
+                  <div style={{ fontSize: 9, color: "#94A3B8", marginTop: 2 }}>{totalCourseSalesCount} × ₺{fmt(r.amt)}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, color: "#94A3B8" }}>Satışın %'si</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: r.col }}>
+                    %{totalRev > 0 ? (r.tot / totalRev * 100).toFixed(2) : "0.00"}
+                  </div>
+                  <div style={{ fontSize: 9, color: "#94A3B8", marginTop: 2 }}>₺{fmtK(r.tot)} / ₺{fmtK(totalRev)}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, color: "#94A3B8" }}>Net Kârın %'si</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: netProfit > 0 ? r.col : "#F25C5C" }}>
+                    {netProfit > 0 ? `%${(r.tot / netProfit * 100).toFixed(2)}` : "—"}
+                  </div>
+                  <div style={{ fontSize: 9, color: "#94A3B8", marginTop: 2 }}>
+                    {netProfit > 0 ? `₺${fmtK(r.tot)} / ₺${fmtK(netProfit)}` : "Zararda"}
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-          <div style={{ ...S.card, padding: 16, borderTop: "4px solid #FDBA74" }}>
-            <div style={S.label}>Lead → Toplam Satışın Yüzdesi</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: "#FDBA74" }}>
-              %{totalRev > 0 ? (leadReferrerCstTotal / totalRev * 100).toFixed(2) : "0.00"}
-            </div>
-            <div style={{ fontSize: 9, color: "#94A3B8", marginTop: 4 }}>
-              ₺{fmtK(leadReferrerCstTotal)} / ₺{fmtK(totalRev)} toplam gelir
-            </div>
-          </div>
-          <div style={{ ...S.card, padding: 16, borderTop: netProfit > 0 ? "4px solid #FDBA74" : "4px solid #F25C5C" }}>
-            <div style={S.label}>Lead → Net Kârın Yüzdesi</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: netProfit > 0 ? "#FDBA74" : "#F25C5C" }}>
-              {netProfit > 0 ? `%${(leadReferrerCstTotal / netProfit * 100).toFixed(2)}` : "—"}
-            </div>
-            <div style={{ fontSize: 9, color: "#94A3B8", marginTop: 4 }}>
-              {netProfit > 0 ? `₺${fmtK(leadReferrerCstTotal)} / ₺${fmtK(netProfit)} net kâr` : "Zararda: hesaplanamaz"}
-            </div>
-          </div>
+          ))}
         </div>
 
         {/* Chart: per-student contribution */}
