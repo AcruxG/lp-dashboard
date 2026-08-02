@@ -41,8 +41,7 @@ export default function MonthlyModel() {
 
     const courseRevTotal = numStudents * revPerStu;
     const courseCstTotal = numStudents * cstPerStu;
-    const commissionsTotal = numStudents * numCourses * salespersonAmount
-      + numStudents * numCourses * hours * leadReferrerAmount;
+    const commissionsTotal = numStudents * numCourses * (salespersonAmount + leadReferrerAmount);
 
     const totalAnnualRev = courseRevTotal + danRevTotal;
     const totalAnnualVarCst = courseCstTotal + danCstTotal + kocLukCstTotal + commissionsTotal;

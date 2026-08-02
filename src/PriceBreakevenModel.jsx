@@ -66,9 +66,8 @@ export default function PriceBreakevenModel() {
 
   const managerAnnual = managerWage * 12;
   const totalCourseSales = numStudents * numCourses;
-  const totalCourseHours = totalCourseSales * hours;
   const salespersonCstTotal = totalCourseSales * salespersonAmount;
-  const leadReferrerCstTotal = totalCourseHours * leadReferrerAmount;
+  const leadReferrerCstTotal = totalCourseSales * leadReferrerAmount;
   const commissionsFixed = salespersonCstTotal + leadReferrerCstTotal;
   // R0 = revenue that DOESN'T depend on course price
   const R0 = danRevTotal;  // sadece danışmanlık; koçluk zaten ders fiyatına dahil
@@ -129,7 +128,7 @@ export default function PriceBreakevenModel() {
       const danR = (numApps * n) * pricePerAppTl;
       const ccTot = n * numCourses * hours * tutorCostPerHour;
       const kocC = n * kocLukHours * kocLukTutorCostPerHour;
-      const commC = n * numCourses * salespersonAmount + n * numCourses * hours * leadReferrerAmount;
+      const commC = n * numCourses * (salespersonAmount + leadReferrerAmount);
       const dCst = payMode === "wage"
         ? numConsultants * consultantWage * 12
         : Math.round(danR * commissionPct / 100);

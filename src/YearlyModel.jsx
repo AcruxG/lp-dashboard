@@ -138,11 +138,10 @@ export default function YearlyModel() {
   const kocLukCstPerStu = kocLukHours * kocLukTutorCostPerHour;
   const kocLukCstTotal = numStudents * kocLukCstPerStu;
 
-  // Satış komisyonları — satışçı ders başına, lead getiren ders SAATİ başına sabit TL
+  // Satış komisyonları (her ikisi de ders başı sabit TL — satılan ders sayısıyla ölçeklenir)
   const totalCourseSales = numStudents * numCourses;
-  const totalCourseHours = totalCourseSales * hours;
   const salespersonCstTotal = totalCourseSales * salespersonAmount;
-  const leadReferrerCstTotal = totalCourseHours * leadReferrerAmount;
+  const leadReferrerCstTotal = totalCourseSales * leadReferrerAmount;
   const commissionsTotal = salespersonCstTotal + leadReferrerCstTotal;
 
   // Manager annual cost
@@ -182,7 +181,7 @@ export default function YearlyModel() {
   const danVarCstPerStu = payMode === "commission"
     ? Math.round(danRevPerStu * commissionPct / 100)
     : 0;
-  const commPerStu = numCourses * salespersonAmount + numCourses * hours * leadReferrerAmount;
+  const commPerStu = numCourses * (salespersonAmount + leadReferrerAmount);
   const combinedVarCstPerStu = cstPerStu + kocLukCstPerStu + danVarCstPerStu + commPerStu;
 
   const kdvPerStu = combinedRevPerStu * 20 / 120;
@@ -195,12 +194,12 @@ export default function YearlyModel() {
   const grossPct = revPerStu > 0 ? (margPerStu / revPerStu * 100) : 0;
 
   // ── Ders satışı başına yüklenen maliyet ───────────────────────────────────
-  // Doğrudan maliyetler (bu tek dersin kendisine ait): eğitmen + lead komisyonu (saat bazlı).
+  // Doğrudan maliyetler (bu tek dersin kendisine ait): eğitmen, satışçı ve lead komisyonu.
   // Paylaştırılmış maliyetler (şirket genelindeki ortak maliyetin ders sayısına bölünmüş payı).
   const costPerCourse = {
     egitmen: avgCst,                                                          // doğrudan: saat × saat ücreti
-    lead: hours * leadReferrerAmount,                                         // doğrudan: saat × saatlik lead ücreti
     satisci: salespersonAmount,                                               // doğrudan: sabit ders başı
+    lead: leadReferrerAmount,                                                 // doğrudan: sabit ders başı
     danisman: totalCourseSales > 0 ? danCstTotal / totalCourseSales : 0,      // paylaştırılmış
     koc: totalCourseSales > 0 ? kocLukCstTotal / totalCourseSales : 0,        // paylaştırılmış
     yonetici: totalCourseSales > 0 ? managerAnnual / totalCourseSales : 0,    // paylaştırılmış
@@ -218,7 +217,7 @@ export default function YearlyModel() {
       const cRevPerStu = c * avgRev;
       const courseRev = n * cRevPerStu;
       const combinedRev = courseRev + danRevTotal;
-      const comm = n * c * salespersonAmount + n * c * hours * leadReferrerAmount;
+      const comm = n * c * (salespersonAmount + leadReferrerAmount);
       const combinedCst = n * c * avgCst + n * kocLukCstPerStu + danCstTotal + managerAnnual + comm;
       const kdv = combinedRev * 20 / 120;
       const preTax = (combinedRev - combinedCst) - fc - kdv;
@@ -226,14 +225,14 @@ export default function YearlyModel() {
       row[`C${c}`] = preTax - tax;
     }
     return row;
-  }), [fc, avgRev, avgCst, danRevTotal, danCstTotal, managerAnnual, maxN, kocLukCstPerStu, hours, salespersonAmount, leadReferrerAmount]);
+  }), [fc, avgRev, avgCst, danRevTotal, danCstTotal, managerAnnual, maxN, kocLukCstPerStu, salespersonAmount, leadReferrerAmount]);
 
   // Scenario rows
   const scenarioNs = [...new Set([1, 3, 5, 8, 10, 15, 20, 25, 30, numStudents])].sort((a, b) => a - b);
   const scenRows = scenarioNs.map(n => {
     const cRev = n * revPerStu;
     const combinedRev = cRev + danRevTotal;
-    const comm = n * numCourses * salespersonAmount + n * numCourses * hours * leadReferrerAmount;
+    const comm = n * numCourses * (salespersonAmount + leadReferrerAmount);
     const combinedCst = n * cstPerStu + n * kocLukCstPerStu + danCstTotal + managerAnnual + comm;
     const kdv = combinedRev * 20 / 120;
     const preTax = (combinedRev - combinedCst) - fc - kdv;
@@ -566,7 +565,7 @@ export default function YearlyModel() {
 
       {/* ── 3.6. Satış Komisyonları ── */}
       <div style={S.sectionTitle}>
-        3.6 Satış Komisyonları (Satışçı: Ders Başı · Lead: Ders Saati Başı)
+        3.6 Satış Komisyonları (Ders Başı Sabit ₺)
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
         <div style={{ ...S.card, padding: 16 }}>
@@ -579,12 +578,12 @@ export default function YearlyModel() {
           </div>
         </div>
         <div style={{ ...S.card, padding: 16 }}>
-          <div style={S.label}>Lead Getirene Ders Saati Başı Ücret (₺)</div>
+          <div style={S.label}>Lead Getirene Ders Başı Ücret (₺)</div>
           <input type="number" min={0} value={leadReferrerAmount}
             onChange={e => setLeadReferrerAmount(+e.target.value)}
             style={{ ...S.input, fontSize: 20, color: "#FDBA74" }} />
           <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 4 }}>
-            {totalCourseHours} saat ({totalCourseSales} ders × {hours} saat) × ₺{fmt(leadReferrerAmount)} = <span style={{ color: "#FDBA74" }}>₺{fmt(leadReferrerCstTotal)}</span> yıllık
+            {totalCourseSales} ders × ₺{fmt(leadReferrerAmount)} = <span style={{ color: "#FDBA74" }}>₺{fmt(leadReferrerCstTotal)}</span> yıllık
           </div>
         </div>
       </div>
@@ -879,14 +878,14 @@ export default function YearlyModel() {
       </div>
       <div style={{ ...S.card, padding: "16px 22px", marginBottom: 20 }}>
         <div style={{ fontSize: 11, color: "#94A3B8", marginBottom: 12 }}>
-          Tek bir öğrencinin tek bir dersi satın almasının şirkete tam maliyeti — doğrudan maliyetler (eğitmen, lead komisyonu) dersin kendi saatinden, paylaştırılmış maliyetler (danışman, koç, yönetici, sabit gider) toplam {totalCourseSales} ders satışına eşit bölünerek hesaplanır.
+          Tek bir öğrencinin tek bir dersi satın almasının şirkete tam maliyeti — doğrudan maliyetler (eğitmen, satışçı, lead) doğrudan bu derse ait, paylaştırılmış maliyetler (danışman, koç, yönetici, sabit gider) toplam {totalCourseSales} ders satışına eşit bölünerek hesaplanır.
         </div>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
           <tbody>
             {[
               { k: "Eğitmen Ücreti (Doğrudan)", v: costPerCourse.egitmen, col: "#F472B6", note: `${hours} saat × ₺${fmt(tutorCostPerHour)}` },
-              { k: "Lead Getiren Komisyonu (Doğrudan)", v: costPerCourse.lead, col: "#FDBA74", note: `${hours} saat × ₺${fmt(leadReferrerAmount)}` },
               { k: "Satışçı Komisyonu (Doğrudan)", v: costPerCourse.satisci, col: "#FB923C", note: "sabit ders başı" },
+              { k: "Lead Getiren Komisyonu (Doğrudan)", v: costPerCourse.lead, col: "#FDBA74", note: "sabit ders başı" },
               { k: "Danışman Payı (Paylaştırılmış)", v: costPerCourse.danisman, col: "#38BDF8", note: `₺${fmt(danCstTotal)} / ${totalCourseSales} ders` },
               { k: "Koçluk Payı (Paylaştırılmış)", v: costPerCourse.koc, col: "#8B5CF6", note: `₺${fmt(kocLukCstTotal)} / ${totalCourseSales} ders` },
               { k: "Yönetici Payı (Paylaştırılmış)", v: costPerCourse.yonetici, col: "#34D399", note: `₺${fmt(managerAnnual)} / ${totalCourseSales} ders` },
