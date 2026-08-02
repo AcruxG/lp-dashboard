@@ -39,13 +39,12 @@ export default function DetailAnalysisPage() {
 
   // Per-student
   const perStudent = useMemo(() => detailStudents.map(s => {
-    let courseRev = 0, courseCst = 0, courseHours = 0;
+    let courseRev = 0, courseCst = 0;
     s.courseIds.forEach(cid => {
       const c = courseMap[cid];
       if (!c) return;
       courseRev += c.hours * c.pricePerHour * (1 - (c.discount || 0) / 100);
       courseCst += c.hours * c.tutorCostPerHour;
-      courseHours += c.hours;
     });
     const apps = s.numApps || 0;
     const appsRev = apps * pricePerAppTl;
@@ -54,7 +53,7 @@ export default function DetailAnalysisPage() {
     return {
       ...s,
       apps, kocH,
-      courseRev, courseCst, courseHours,
+      courseRev, courseCst,
       courseMargin: courseRev - courseCst,
       appsRev,
       kocCst,
@@ -70,13 +69,13 @@ export default function DetailAnalysisPage() {
   const danCstTotal = payMode === "wage"
     ? numConsultants * consultantWage * 12
     : Math.round(totalAppsRev * commissionPct / 100);
-  // Both commissions: ders SAATİ başı sabit TL — toplam ders saatiyle ölçeklenir
+  // Both commissions: ders başı sabit TL — toplam atama sayısıyla ölçeklenir
   const totalCourseSalesCount = detailStudents.reduce((a, s) => a + s.courseIds.length, 0);
   const totalHoursAssigned = detailStudents.reduce((a, s) => (
     a + s.courseIds.reduce((b, cid) => b + ((courseMap[cid]?.hours) || 0), 0)
   ), 0);
-  const salespersonCstTotal = totalHoursAssigned * salespersonAmount;
-  const leadReferrerCstTotal = totalHoursAssigned * leadReferrerAmount;
+  const salespersonCstTotal = totalCourseSalesCount * salespersonAmount;
+  const leadReferrerCstTotal = totalCourseSalesCount * leadReferrerAmount;
   const commissionsTotal = salespersonCstTotal + leadReferrerCstTotal;
 
   const totalRev = totalCourseRev + totalAppsRev;
@@ -116,7 +115,7 @@ export default function DetailAnalysisPage() {
   const avgDiscount = totalHoursAssigned > 0 ? weightedDiscountSum / totalHoursAssigned : 0;
   const currentAvgCoursePrice = totalAssignments > 0 ? totalCourseRev / totalAssignments : 0;
 
-  // Break-even avg price/hour — komisyonlar (satışçı+lead) ders saati başı sabit, C0'a girer, commRate = 0
+  // Break-even avg price/hour — komisyonlar (satışçı+lead) ders başı sabit, C0'a girer, commRate = 0
   //   p_BE = [1.2×C0 − R0] / a,  where a = totalEffectiveHours (if uniform p)
   const R0_bea = totalAppsRev;
   const C0_bea = totalCourseCst + totalKocCst + danCstTotal + managerAnnual + commissionsTotal + fc;
@@ -156,7 +155,7 @@ export default function DetailAnalysisPage() {
     return perStudent.map(s => {
       const revShare = totalRev > 0 ? s.totalRev / totalRev : 0;
       const danCommShare = payMode === "commission" ? Math.round(s.appsRev * commissionPct / 100) : 0;
-      const salesCommShare = s.courseHours * (salespersonAmount + leadReferrerAmount);
+      const salesCommShare = s.courseIds.length * (salespersonAmount + leadReferrerAmount);
       const kdvShare = s.totalRev * 20 / 120;
       const fixedShare = fixedTotal * revShare;
       const preTax = s.totalRev - s.courseCst - s.kocCst - danCommShare - salesCommShare - kdvShare - fixedShare;
@@ -238,8 +237,8 @@ export default function DetailAnalysisPage() {
                 { k: "− Eğitmen Gideri", v: -totalCourseCst, col: "#F25C5C" },
                 { k: "− Koç Gideri", v: -totalKocCst, col: "#F25C5C" },
                 { k: `− Danışman Gideri (${payMode === "wage" ? "Maaş" : `Komisyon %${commissionPct}`})`, v: -danCstTotal, col: "#F25C5C" },
-                { k: `− Satışçı Komisyonu (${totalHoursAssigned} saat × ₺${fmt(salespersonAmount)})`, v: -salespersonCstTotal, col: "#FB923C" },
-                { k: `− Lead Getirene Ücret (${totalHoursAssigned} saat × ₺${fmt(leadReferrerAmount)})`, v: -leadReferrerCstTotal, col: "#FB923C" },
+                { k: `− Satışçı Komisyonu (${totalCourseSalesCount} ders × ₺${fmt(salespersonAmount)})`, v: -salespersonCstTotal, col: "#FB923C" },
+                { k: `− Lead Getirene Ücret (${totalCourseSalesCount} ders × ₺${fmt(leadReferrerAmount)})`, v: -leadReferrerCstTotal, col: "#FB923C" },
                 { k: "− Yönetici Maaşı (yıllık)", v: -managerAnnual, col: "#F25C5C" },
                 { k: "= Brüt Kâr", v: grossProfit, col: grossProfit >= 0 ? "#FFFFFF" : "#F25C5C", bold: true },
                 { k: "− Sabit Giderler (FC)", v: -fc, col: "#FB7185" },
@@ -273,7 +272,7 @@ export default function DetailAnalysisPage() {
                 <div>
                   <div style={{ fontSize: 10, color: "#94A3B8" }}>Toplam ₺</div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: r.col }}>₺{fmt(r.tot)}</div>
-                  <div style={{ fontSize: 9, color: "#94A3B8", marginTop: 2 }}>{totalHoursAssigned} saat × ₺{fmt(r.amt)}</div>
+                  <div style={{ fontSize: 9, color: "#94A3B8", marginTop: 2 }}>{totalCourseSalesCount} × ₺{fmt(r.amt)}</div>
                 </div>
                 <div>
                   <div style={{ fontSize: 10, color: "#94A3B8" }}>Satışın %'si</div>
