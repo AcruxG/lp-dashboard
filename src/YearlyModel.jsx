@@ -57,6 +57,28 @@ const S = {
     color: "#FFFFFF", fontSize: 20, fontWeight: 700, outline: "none", fontFamily: "inherit", padding: "6px 0"
   },
   sectionTitle: { display: "flex", alignItems: "center", gap: 10, fontSize: 18, fontWeight: 700, color: "#FFFFFF", marginBottom: 16, marginTop: 40, borderBottom: "1px solid #14465B", paddingBottom: 10 },
+  rowText: {
+    background: "transparent", border: "none", borderBottom: "1px solid #14465B",
+    color: "#FFFFFF", fontSize: 13, fontWeight: 600, outline: "none", fontFamily: "inherit", padding: "4px 0", width: "100%",
+  },
+  rowNum: {
+    background: "#060A0D", border: "1px solid #14465B", borderRadius: 6,
+    color: "#FFFFFF", fontSize: 13, fontWeight: 600, outline: "none", fontFamily: "inherit", padding: "6px 8px", width: "100%",
+  },
+  rowBtnAdd: {
+    background: "transparent", border: "1px solid #14465B", color: "#94A3B8",
+    padding: "4px 10px", fontSize: 10, fontWeight: 700, cursor: "pointer", borderRadius: 6, fontFamily: "inherit",
+  },
+  rowBtnDel: {
+    background: "transparent", border: "1px solid #F25C5C33", color: "#F25C5C",
+    padding: "4px 8px", fontSize: 11, fontWeight: 700, cursor: "pointer", borderRadius: 6, fontFamily: "inherit", lineHeight: 1,
+  },
+};
+
+const nextRowId = (prefix, existing) => {
+  const nums = existing.map(x => parseInt((x.id || "").replace(`${prefix}_`, ""), 10)).filter(Number.isFinite);
+  const max = nums.length ? Math.max(...nums) : 0;
+  return `${prefix}_${max + 1}`;
 };
 
 // ── Custom Tooltip ───────────────────────────────────────────────────────────
@@ -109,13 +131,29 @@ export default function YearlyModel() {
     numApps, setNumApps, pricePerAppUsd, setPricePerAppUsd, usdTry, setUsdTry, rateStatus, setRateStatus,
     numConsultants, setNumConsultants, consultantWage, setConsultantWage, payMode, setPayMode, commissionPct, setCommissionPct,
     kocLukHours, setKocLukHours, kocLukTutorCostPerHour, setKocLukTutorCostPerHour,
-    salespersonAmount, setSalespersonAmount, leadReferrerAmount, setLeadReferrerAmount,
+    salespeople, setSalespeople, leadReferrers, setLeadReferrers,
+    salespersonCstTotal, leadReferrerCstTotal, commissionsTotal,
     managerWage, setManagerWage,
     fcKira, setFcKira, fcKiraStopaj, setFcKiraStopaj, fcDamga, setFcDamga,
     fcSmmm, setFcSmmm, fcSmmmStopaj, setFcSmmmStopaj, fcIto, setFcIto, fcNoter, setFcNoter,
     fcWeb, setFcWeb, fcY, setFcY, fcKredi, setFcKredi, fcKurulus, setFcKurulus, fcBagkur, setFcBagkur,
     fc, totalMonthlyFc, totalAnnualOneOffFc
   } = useAppContext();
+
+  // ── Satışçı / Lead liste yönetimi (ekle / sil / güncelle) ──────────────────
+  const addSalesperson = () => {
+    const id = nextRowId("sp", salespeople);
+    setSalespeople(prev => [...prev, { id, name: `Satışçı ${prev.length + 1}`, coursesSold: 0, ratePerCourse: 100 }]);
+  };
+  const removeSalesperson = (id) => setSalespeople(prev => prev.filter(p => p.id !== id));
+  const updateSalesperson = (id, patch) => setSalespeople(prev => prev.map(p => p.id === id ? { ...p, ...patch } : p));
+
+  const addLead = () => {
+    const id = nextRowId("ld", leadReferrers);
+    setLeadReferrers(prev => [...prev, { id, name: `Lead ${prev.length + 1}`, coursesSold: 0, ratePerCourse: 100 }]);
+  };
+  const removeLead = (id) => setLeadReferrers(prev => prev.filter(p => p.id !== id));
+  const updateLead = (id, patch) => setLeadReferrers(prev => prev.map(p => p.id === id ? { ...p, ...patch } : p));
 
   // Course calculations
   const avgRev = Math.round(hours * pricePerHour * (1 - discount / 100));
@@ -138,11 +176,9 @@ export default function YearlyModel() {
   const kocLukCstPerStu = kocLukHours * kocLukTutorCostPerHour;
   const kocLukCstTotal = numStudents * kocLukCstPerStu;
 
-  // Satış komisyonları (her ikisi de ders başı sabit TL — satılan ders sayısıyla ölçeklenir)
+  // Satış komisyonları — salespeople/leadReferrers listelerinden (isimlendirilmiş kişiler,
+  // her biri kendi ders sayısı × kendi ücretiyle) gelen SABİT toplam. AppContext'te hesaplanır.
   const totalCourseSales = numStudents * numCourses;
-  const salespersonCstTotal = totalCourseSales * salespersonAmount;
-  const leadReferrerCstTotal = totalCourseSales * leadReferrerAmount;
-  const commissionsTotal = salespersonCstTotal + leadReferrerCstTotal;
 
   // Manager annual cost
   const managerAnnual = managerWage * 12;
@@ -181,25 +217,27 @@ export default function YearlyModel() {
   const danVarCstPerStu = payMode === "commission"
     ? Math.round(danRevPerStu * commissionPct / 100)
     : 0;
-  const commPerStu = numCourses * (salespersonAmount + leadReferrerAmount);
-  const combinedVarCstPerStu = cstPerStu + kocLukCstPerStu + danVarCstPerStu + commPerStu;
+  const combinedVarCstPerStu = cstPerStu + kocLukCstPerStu + danVarCstPerStu;
 
   const kdvPerStu = combinedRevPerStu * 20 / 120;
   const perStuNetMargin = combinedRevPerStu - combinedVarCstPerStu - kdvPerStu;
 
-  // Fixed costs (don't scale with students)
-  const fixedCosts = fc + managerAnnual + (payMode === "wage" ? numConsultants * consultantWage * 12 : 0);
+  // Fixed costs (don't scale with students) — komisyonlar artık isimlendirilmiş kişilere bağlı
+  // sabit bir tutar olduğundan (öğrenci sayısıyla otomatik ölçeklenmez) buraya eklenir.
+  const fixedCosts = fc + managerAnnual + commissionsTotal + (payMode === "wage" ? numConsultants * consultantWage * 12 : 0);
 
   const breakEvenN = perStuNetMargin > 0 ? Math.ceil(fixedCosts / perStuNetMargin) : Infinity;
   const grossPct = revPerStu > 0 ? (margPerStu / revPerStu * 100) : 0;
 
   // ── Ders satışı başına yüklenen maliyet ───────────────────────────────────
-  // Doğrudan maliyetler (bu tek dersin kendisine ait): eğitmen (saat bazlı), satışçı ve lead (sabit ders başı).
-  // Paylaştırılmış maliyetler (şirket genelindeki ortak maliyetin ders sayısına bölünmüş payı).
+  // Doğrudan maliyet (bu tek dersin kendisine ait): eğitmen (saat bazlı).
+  // Paylaştırılmış maliyetler (şirket genelindeki ortak maliyetin ders sayısına bölünmüş payı) —
+  // satışçı/lead artık isimlendirilmiş kişilere bağlı sabit bir toplam olduğundan burada da
+  // diğer ortak giderler (danışman, koç, yönetici, FC) gibi ortalama pay olarak gösterilir.
   const costPerCourse = {
     egitmen: avgCst,                                                          // doğrudan: saat × saat ücreti
-    satisci: salespersonAmount,                                               // doğrudan: sabit ders başı
-    lead: leadReferrerAmount,                                                 // doğrudan: sabit ders başı
+    satisci: totalCourseSales > 0 ? salespersonCstTotal / totalCourseSales : 0,   // paylaştırılmış
+    lead: totalCourseSales > 0 ? leadReferrerCstTotal / totalCourseSales : 0,     // paylaştırılmış
     danisman: totalCourseSales > 0 ? danCstTotal / totalCourseSales : 0,      // paylaştırılmış
     koc: totalCourseSales > 0 ? kocLukCstTotal / totalCourseSales : 0,        // paylaştırılmış
     yonetici: totalCourseSales > 0 ? managerAnnual / totalCourseSales : 0,    // paylaştırılmış
@@ -210,6 +248,8 @@ export default function YearlyModel() {
   const netContributionPerCourse = avgRev - totalCostPerCourse - kdvPerCourse;
 
   // Chart: profit vs students for different course counts (1..8)
+  // Komisyonlar sabit (isimlendirilmiş kişilere bağlı) olduğundan n/c ile ölçeklenmez —
+  // fc/managerAnnual gibi tek seferlik sabit gider olarak eklenir.
   const maxN = Math.max(30, numStudents + 10);
   const chartData = useMemo(() => Array.from({ length: maxN + 1 }, (_, n) => {
     const row = { n };
@@ -217,23 +257,21 @@ export default function YearlyModel() {
       const cRevPerStu = c * avgRev;
       const courseRev = n * cRevPerStu;
       const combinedRev = courseRev + danRevTotal;
-      const comm = n * c * (salespersonAmount + leadReferrerAmount);
-      const combinedCst = n * c * avgCst + n * kocLukCstPerStu + danCstTotal + managerAnnual + comm;
+      const combinedCst = n * c * avgCst + n * kocLukCstPerStu + danCstTotal + managerAnnual + commissionsTotal;
       const kdv = combinedRev * 20 / 120;
       const preTax = (combinedRev - combinedCst) - fc - kdv;
       const tax = preTax > 0 ? preTax * 0.25 : 0;
       row[`C${c}`] = preTax - tax;
     }
     return row;
-  }), [fc, avgRev, avgCst, danRevTotal, danCstTotal, managerAnnual, maxN, kocLukCstPerStu, salespersonAmount, leadReferrerAmount]);
+  }), [fc, avgRev, avgCst, danRevTotal, danCstTotal, managerAnnual, maxN, kocLukCstPerStu, commissionsTotal]);
 
   // Scenario rows
   const scenarioNs = [...new Set([1, 3, 5, 8, 10, 15, 20, 25, 30, numStudents])].sort((a, b) => a - b);
   const scenRows = scenarioNs.map(n => {
     const cRev = n * revPerStu;
     const combinedRev = cRev + danRevTotal;
-    const comm = n * numCourses * (salespersonAmount + leadReferrerAmount);
-    const combinedCst = n * cstPerStu + n * kocLukCstPerStu + danCstTotal + managerAnnual + comm;
+    const combinedCst = n * cstPerStu + n * kocLukCstPerStu + danCstTotal + managerAnnual + commissionsTotal;
     const kdv = combinedRev * 20 / 120;
     const preTax = (combinedRev - combinedCst) - fc - kdv;
     const tax = preTax > 0 ? preTax * 0.25 : 0;
@@ -565,25 +603,85 @@ export default function YearlyModel() {
 
       {/* ── 3.6. Satış Komisyonları ── */}
       <div style={S.sectionTitle}>
-        3.6 Satış Komisyonları (Ders Başı Sabit ₺)
+        3.6 Satış Komisyonları (Ders Başı Sabit ₺ — Kişi Bazlı Liste)
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+        {/* Satışçılar */}
         <div style={{ ...S.card, padding: 16 }}>
-          <div style={S.label}>Satışçıya Ders Başı Ücret (₺)</div>
-          <input type="number" min={0} value={salespersonAmount}
-            onChange={e => setSalespersonAmount(+e.target.value)}
-            style={{ ...S.input, fontSize: 20, color: "#FB923C" }} />
-          <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 4 }}>
-            {totalCourseSales} ders × ₺{fmt(salespersonAmount)} = <span style={{ color: "#FB923C" }}>₺{fmt(salespersonCstTotal)}</span> yıllık
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <div style={S.label}>Satışçılar</div>
+            <button onClick={addSalesperson} style={S.rowBtnAdd}>+ Ekle</button>
+          </div>
+          {salespeople.length > 0 && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 64px 76px 22px", gap: 8, marginBottom: 4 }}>
+              <div style={{ fontSize: 9, color: "#94A3B8", textTransform: "uppercase" }}>İsim</div>
+              <div style={{ fontSize: 9, color: "#94A3B8", textTransform: "uppercase" }}>Ders</div>
+              <div style={{ fontSize: 9, color: "#94A3B8", textTransform: "uppercase" }}>₺/Ders</div>
+              <div />
+            </div>
+          )}
+          {salespeople.map(p => (
+            <div key={p.id} style={{ display: "grid", gridTemplateColumns: "1fr 64px 76px 22px", gap: 8, marginBottom: 8, alignItems: "center" }}>
+              <input type="text" value={p.name}
+                onChange={e => updateSalesperson(p.id, { name: e.target.value })}
+                style={S.rowText} />
+              <input type="number" min={0} value={p.coursesSold}
+                onChange={e => updateSalesperson(p.id, { coursesSold: Math.max(0, parseInt(e.target.value, 10) || 0) })}
+                style={S.rowNum} />
+              <input type="number" min={0} value={p.ratePerCourse}
+                onChange={e => updateSalesperson(p.id, { ratePerCourse: Math.max(0, parseFloat(e.target.value) || 0) })}
+                style={S.rowNum} />
+              <button onClick={() => removeSalesperson(p.id)} style={S.rowBtnDel} title="Sil">✕</button>
+            </div>
+          ))}
+          {salespeople.length === 0 && (
+            <div style={{ fontSize: 11, color: "#94A3B8", padding: "8px 0" }}>Satışçı yok.</div>
+          )}
+          <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 6, paddingTop: 8, borderTop: "1px solid #14465B" }}>
+            Toplam {salespeople.reduce((a, p) => a + (Number(p.coursesSold) || 0), 0)} ders
+            {" "}→ <span style={{ color: "#FB923C", fontWeight: 700 }}>₺{fmt(salespersonCstTotal)}</span> yıllık
+            {salespeople.reduce((a, p) => a + (Number(p.coursesSold) || 0), 0) !== totalCourseSales && (
+              <span> (beklenen: {totalCourseSales} ders)</span>
+            )}
           </div>
         </div>
+        {/* Lead Getirenler */}
         <div style={{ ...S.card, padding: 16 }}>
-          <div style={S.label}>Lead Getirene Ders Başı Ücret (₺)</div>
-          <input type="number" min={0} value={leadReferrerAmount}
-            onChange={e => setLeadReferrerAmount(+e.target.value)}
-            style={{ ...S.input, fontSize: 20, color: "#FDBA74" }} />
-          <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 4 }}>
-            {totalCourseSales} ders × ₺{fmt(leadReferrerAmount)} = <span style={{ color: "#FDBA74" }}>₺{fmt(leadReferrerCstTotal)}</span> yıllık
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <div style={S.label}>Lead Getirenler</div>
+            <button onClick={addLead} style={S.rowBtnAdd}>+ Ekle</button>
+          </div>
+          {leadReferrers.length > 0 && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 64px 76px 22px", gap: 8, marginBottom: 4 }}>
+              <div style={{ fontSize: 9, color: "#94A3B8", textTransform: "uppercase" }}>İsim</div>
+              <div style={{ fontSize: 9, color: "#94A3B8", textTransform: "uppercase" }}>Ders</div>
+              <div style={{ fontSize: 9, color: "#94A3B8", textTransform: "uppercase" }}>₺/Ders</div>
+              <div />
+            </div>
+          )}
+          {leadReferrers.map(p => (
+            <div key={p.id} style={{ display: "grid", gridTemplateColumns: "1fr 64px 76px 22px", gap: 8, marginBottom: 8, alignItems: "center" }}>
+              <input type="text" value={p.name}
+                onChange={e => updateLead(p.id, { name: e.target.value })}
+                style={S.rowText} />
+              <input type="number" min={0} value={p.coursesSold}
+                onChange={e => updateLead(p.id, { coursesSold: Math.max(0, parseInt(e.target.value, 10) || 0) })}
+                style={S.rowNum} />
+              <input type="number" min={0} value={p.ratePerCourse}
+                onChange={e => updateLead(p.id, { ratePerCourse: Math.max(0, parseFloat(e.target.value) || 0) })}
+                style={S.rowNum} />
+              <button onClick={() => removeLead(p.id)} style={S.rowBtnDel} title="Sil">✕</button>
+            </div>
+          ))}
+          {leadReferrers.length === 0 && (
+            <div style={{ fontSize: 11, color: "#94A3B8", padding: "8px 0" }}>Lead getiren yok.</div>
+          )}
+          <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 6, paddingTop: 8, borderTop: "1px solid #14465B" }}>
+            Toplam {leadReferrers.reduce((a, p) => a + (Number(p.coursesSold) || 0), 0)} ders
+            {" "}→ <span style={{ color: "#FDBA74", fontWeight: 700 }}>₺{fmt(leadReferrerCstTotal)}</span> yıllık
+            {leadReferrers.reduce((a, p) => a + (Number(p.coursesSold) || 0), 0) !== totalCourseSales && (
+              <span> (beklenen: {totalCourseSales} ders)</span>
+            )}
           </div>
         </div>
       </div>
@@ -878,14 +976,14 @@ export default function YearlyModel() {
       </div>
       <div style={{ ...S.card, padding: "16px 22px", marginBottom: 20 }}>
         <div style={{ fontSize: 11, color: "#94A3B8", marginBottom: 12 }}>
-          Tek bir öğrencinin tek bir dersi satın almasının şirkete tam maliyeti — doğrudan maliyetler (eğitmen, satışçı, lead) doğrudan bu derse ait, paylaştırılmış maliyetler (danışman, koç, yönetici, sabit gider) toplam {totalCourseSales} ders satışına eşit bölünerek hesaplanır.
+          Tek bir öğrencinin tek bir dersi satın almasının şirkete tam maliyeti — doğrudan maliyet (eğitmen) bu derse ait, paylaştırılmış maliyetler (satışçı, lead, danışman, koç, yönetici, sabit gider) toplam {totalCourseSales} ders satışına eşit bölünerek hesaplanır.
         </div>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
           <tbody>
             {[
               { k: "Eğitmen Ücreti (Doğrudan)", v: costPerCourse.egitmen, col: "#F472B6", note: `${hours} saat × ₺${fmt(tutorCostPerHour)}` },
-              { k: "Satışçı Komisyonu (Doğrudan)", v: costPerCourse.satisci, col: "#FB923C", note: "sabit ders başı" },
-              { k: "Lead Getiren Komisyonu (Doğrudan)", v: costPerCourse.lead, col: "#FDBA74", note: "sabit ders başı" },
+              { k: "Satışçı Komisyonu (Paylaştırılmış)", v: costPerCourse.satisci, col: "#FB923C", note: `₺${fmt(salespersonCstTotal)} / ${totalCourseSales} ders` },
+              { k: "Lead Getiren Komisyonu (Paylaştırılmış)", v: costPerCourse.lead, col: "#FDBA74", note: `₺${fmt(leadReferrerCstTotal)} / ${totalCourseSales} ders` },
               { k: "Danışman Payı (Paylaştırılmış)", v: costPerCourse.danisman, col: "#38BDF8", note: `₺${fmt(danCstTotal)} / ${totalCourseSales} ders` },
               { k: "Koçluk Payı (Paylaştırılmış)", v: costPerCourse.koc, col: "#8B5CF6", note: `₺${fmt(kocLukCstTotal)} / ${totalCourseSales} ders` },
               { k: "Yönetici Payı (Paylaştırılmış)", v: costPerCourse.yonetici, col: "#34D399", note: `₺${fmt(managerAnnual)} / ${totalCourseSales} ders` },

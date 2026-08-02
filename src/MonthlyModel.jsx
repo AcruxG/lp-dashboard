@@ -19,7 +19,7 @@ export default function MonthlyModel() {
     numCourses, numStudents, hours, pricePerHour, discount, tutorCostPerHour,
     numApps, pricePerAppUsd, usdTry, numConsultants, consultantWage, payMode, commissionPct,
     kocLukHours, kocLukTutorCostPerHour,
-    salespersonAmount, leadReferrerAmount,
+    commissionsTotal,
     managerWage, totalMonthlyFc, totalAnnualOneOffFc, fcKurulus, fcDamga, fcIto, fcNoter
   } = useAppContext();
 
@@ -41,7 +41,8 @@ export default function MonthlyModel() {
 
     const courseRevTotal = numStudents * revPerStu;
     const courseCstTotal = numStudents * cstPerStu;
-    const commissionsTotal = numStudents * numCourses * (salespersonAmount + leadReferrerAmount);
+    // commissionsTotal artık isimlendirilmiş satışçı/lead listelerinden gelen sabit bir toplam
+    // (AppContext'te hesaplanır) — öğrenci/kurs sayısıyla otomatik ölçeklenmez.
 
     const totalAnnualRev = courseRevTotal + danRevTotal;
     const totalAnnualVarCst = courseCstTotal + danCstTotal + kocLukCstTotal + commissionsTotal;
@@ -89,7 +90,7 @@ export default function MonthlyModel() {
   }, [
     numCourses, numStudents, hours, pricePerHour, discount, tutorCostPerHour,
     numApps, pricePerAppUsd, usdTry, numConsultants, consultantWage, payMode, commissionPct,
-    kocLukHours, kocLukTutorCostPerHour, salespersonAmount, leadReferrerAmount,
+    kocLukHours, kocLukTutorCostPerHour, commissionsTotal,
     managerWage, totalMonthlyFc, totalAnnualOneOffFc
   ]);
 

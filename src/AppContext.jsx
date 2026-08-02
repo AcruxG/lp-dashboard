@@ -17,6 +17,14 @@ const SEED_STUDENTS = [
   { id: "s_3", name: "Öğrenci 3", courseIds: ["c_sat_m"],            numApps: 0, kocLukHours: 0 },
 ];
 
+// Satışçı/lead — her satır kendi ders sayısı ve kendi ders başı ücretiyle (Yıllık sayfada düzenlenir)
+const SEED_SALESPEOPLE = [
+  { id: "sp_1", name: "Satışçı 1", coursesSold: 30, ratePerCourse: 100 },
+];
+const SEED_LEADS = [
+  { id: "ld_1", name: "Lead 1", coursesSold: 30, ratePerCourse: 100 },
+];
+
 const loadJSON = (key, fallback) => {
   try {
     const v = localStorage.getItem(key);
@@ -47,9 +55,9 @@ export const AppProvider = ({ children }) => {
   const [kocLukHours, setKocLukHours] = useState(10);          // öğrenci başı ortalama saat (Yıllık)
   const [kocLukTutorCostPerHour, setKocLukTutorCostPerHour] = useState(2500);
 
-  // Satış komisyonları (her ikisi de ders başı sabit TL — satılan ders sayısıyla ölçeklenir)
-  const [salespersonAmount, setSalespersonAmount] = useState(100);   // satışçıya ders başı TL
-  const [leadReferrerAmount, setLeadReferrerAmount] = useState(100);  // lead getirene ders başı TL
+  // Satış komisyonları — satışçı ve lead getiren listeleri (her satır: isim, ders sayısı, ders başı ücret)
+  const [salespeople, setSalespeople] = useState(SEED_SALESPEOPLE);
+  const [leadReferrers, setLeadReferrers] = useState(SEED_LEADS);
 
   // Manager
   const [managerWage, setManagerWage] = useState(28000);
@@ -96,6 +104,12 @@ export const AppProvider = ({ children }) => {
   const totalAnnualOneOffFc = fcDamga + fcIto + fcNoter + fcKurulus;
   const fc = (totalMonthlyFc * 12) + totalAnnualOneOffFc;
 
+  // Satış komisyonları — her satırın (ders sayısı × ders başı ücret) toplamı. Artık isimlendirilmiş
+  // kişilere bağlı sabit bir tutar (öğrenci/kurs sayısı sliderıyla otomatik ölçeklenmez).
+  const salespersonCstTotal = salespeople.reduce((a, p) => a + (Number(p.coursesSold) || 0) * (Number(p.ratePerCourse) || 0), 0);
+  const leadReferrerCstTotal = leadReferrers.reduce((a, p) => a + (Number(p.coursesSold) || 0) * (Number(p.ratePerCourse) || 0), 0);
+  const commissionsTotal = salespersonCstTotal + leadReferrerCstTotal;
+
   const value = {
     numCourses, setNumCourses,
     numStudents, setNumStudents,
@@ -115,8 +129,11 @@ export const AppProvider = ({ children }) => {
     kocLukHours, setKocLukHours,
     kocLukTutorCostPerHour, setKocLukTutorCostPerHour,
     // Satış komisyonları
-    salespersonAmount, setSalespersonAmount,
-    leadReferrerAmount, setLeadReferrerAmount,
+    salespeople, setSalespeople,
+    leadReferrers, setLeadReferrers,
+    salespersonCstTotal,
+    leadReferrerCstTotal,
+    commissionsTotal,
     managerWage, setManagerWage,
     // Detailed FC
     fcKira, setFcKira,

@@ -43,15 +43,17 @@ export default function PriceBreakevenModel() {
     numApps, pricePerAppUsd, usdTry,
     numConsultants, consultantWage, payMode, commissionPct,
     kocLukHours, kocLukTutorCostPerHour,
-    salespersonAmount, leadReferrerAmount,
+    commissionsTotal,
     managerWage, fc
   } = useAppContext();
 
   const discountFactor = 1 - discount / 100;
   const kdvRatio = 20 / 120;
   const grossUp = 120 / 100;
-  // Her iki komisyon da ders başı sabit TL — course price'tan bağımsız → C0'a girer, commRate = 0
+  // Komisyonlar artık isimlendirilmiş satışçı/lead listelerinden gelen sabit bir toplam
+  // (AppContext) — course price'tan bağımsız → C0'a girer, commRate = 0
   const commRate = 0;
+  const commissionsFixed = commissionsTotal;
 
   // ── Constants (don't depend on course pricePerHour) ──────────────────────
   const pricePerAppTl = Math.round(pricePerAppUsd * usdTry);
@@ -66,12 +68,9 @@ export default function PriceBreakevenModel() {
 
   const managerAnnual = managerWage * 12;
   const totalCourseSales = numStudents * numCourses;
-  const salespersonCstTotal = totalCourseSales * salespersonAmount;
-  const leadReferrerCstTotal = totalCourseSales * leadReferrerAmount;
-  const commissionsFixed = salespersonCstTotal + leadReferrerCstTotal;
   // R0 = revenue that DOESN'T depend on course price
   const R0 = danRevTotal;  // sadece danışmanlık; koçluk zaten ders fiyatına dahil
-  // C0 = costs that DON'T depend on course price (both commissions are fixed TL per course sold)
+  // C0 = costs that DON'T depend on course price (both commissions are fixed TL, isimlendirilmiş listeden)
   const C0 = courseCstTotal + kocLukCstTotal + danCstTotal + managerAnnual + commissionsFixed + fc;
 
   // ── Break-even price/hour ────────────────────────────────────────────────
@@ -89,7 +88,6 @@ export default function PriceBreakevenModel() {
   // ── Current net profit (mirrors YearlyModel) ─────────────────────────────
   const avgRev = Math.round(hours * pricePerHour * discountFactor);
   const courseRevTotal = numStudents * numCourses * avgRev;
-  const commissionsTotal = commissionsFixed;
   const totalRev = courseRevTotal + danRevTotal;
   const totalVarCst = courseCstTotal + kocLukCstTotal + danCstTotal + managerAnnual + commissionsTotal;
   const totalKdv = totalRev * kdvRatio;
@@ -128,12 +126,13 @@ export default function PriceBreakevenModel() {
       const danR = (numApps * n) * pricePerAppTl;
       const ccTot = n * numCourses * hours * tutorCostPerHour;
       const kocC = n * kocLukHours * kocLukTutorCostPerHour;
-      const commC = n * numCourses * (salespersonAmount + leadReferrerAmount);
+      // Komisyonlar isimlendirilmiş kişilere bağlı sabit bir toplam — hipotetik "n öğrenci"
+      // senaryosunda otomatik ölçeklenmez, fc/managerAnnual gibi sabit eklenir.
       const dCst = payMode === "wage"
         ? numConsultants * consultantWage * 12
         : Math.round(danR * commissionPct / 100);
       const R0n = danR;
-      const C0n = ccTot + kocC + dCst + managerAnnual + commC + fc;
+      const C0n = ccTot + kocC + dCst + managerAnnual + commissionsFixed + fc;
       const aN = n * numCourses * hours * discountFactor;
       const num = grossUp * C0n - R0n;
       const beN = aN > 0 ? num / aN : Infinity;
@@ -142,7 +141,7 @@ export default function PriceBreakevenModel() {
     return arr;
   }, [numCourses, hours, discountFactor, numApps, pricePerAppTl, tutorCostPerHour,
       payMode, numConsultants, consultantWage, commissionPct, managerAnnual, fc, grossUp,
-      kocLukHours, kocLukTutorCostPerHour, salespersonAmount, leadReferrerAmount]);
+      kocLukHours, kocLukTutorCostPerHour, commissionsFixed]);
 
   // ── Scenario table ───────────────────────────────────────────────────────
   const beRounded = Number.isFinite(breakEvenPrice) ? Math.round(breakEvenPrice) : null;
