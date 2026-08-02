@@ -47,9 +47,9 @@ export const AppProvider = ({ children }) => {
   const [kocLukHours, setKocLukHours] = useState(10);          // öğrenci başı ortalama saat (Yıllık)
   const [kocLukTutorCostPerHour, setKocLukTutorCostPerHour] = useState(2500);
 
-  // Satış komisyonları (her ikisi de ders başı sabit TL — satılan ders sayısıyla ölçeklenir)
-  const [salespersonAmount, setSalespersonAmount] = useState(100);   // satışçıya ders başı TL
-  const [leadReferrerAmount, setLeadReferrerAmount] = useState(100);  // lead getirene ders başı TL
+  // Satış komisyonları (her ikisi de ders SAATİ başına sabit TL — toplam ders saatiyle ölçeklenir)
+  const [salespersonAmount, setSalespersonAmount] = useState(100);   // satışçıya ders saati başı TL
+  const [leadReferrerAmount, setLeadReferrerAmount] = useState(100);  // lead getirene ders saati başı TL
 
   // Manager
   const [managerWage, setManagerWage] = useState(28000);
