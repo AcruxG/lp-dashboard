@@ -83,6 +83,13 @@ export default function DetailAnalysisPage() {
   const corpTax = preTaxProfit > 0 ? preTaxProfit * 0.25 : 0;
   const netProfit = preTaxProfit - corpTax;
 
+  // Komisyon → "kârın %'si" için referans: netProfit zaten komisyon düşülmüş halde olduğundan,
+  // ona bölmek düşülen gideri tekrar aynı (küçülmüş) kâra oranlamak olur ve oran saçma şişer.
+  // Komisyonu geri ekleyip KV'yi yeniden hesaplayarak "komisyonsuz kâr" baz alınır.
+  const preTaxProfitExclCommissions = preTaxProfit + commissionsTotal;
+  const corpTaxExclCommissions = preTaxProfitExclCommissions > 0 ? preTaxProfitExclCommissions * 0.25 : 0;
+  const netProfitExclCommissions = preTaxProfitExclCommissions - corpTaxExclCommissions;
+
   // ── Averages from detail data ─────────────────────────────────────────────
   const totalAssignments = detailStudents.reduce((a, s) => a + s.courseIds.length, 0);
   const totalHoursAssigned = detailStudents.reduce((a, s) => (
@@ -275,12 +282,12 @@ export default function DetailAnalysisPage() {
                   <div style={{ fontSize: 9, color: "#94A3B8", marginTop: 2 }}>₺{fmtK(r.tot)} / ₺{fmtK(totalRev)}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 10, color: "#94A3B8" }}>Net Kârın %'si</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: netProfit > 0 ? r.col : "#F25C5C" }}>
-                    {netProfit > 0 ? `%${(r.tot / netProfit * 100).toFixed(2)}` : "—"}
+                  <div style={{ fontSize: 10, color: "#94A3B8" }}>Kârın %'si (Komisyonsuz Kâra Göre)</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: netProfitExclCommissions > 0 ? r.col : "#F25C5C" }}>
+                    {netProfitExclCommissions > 0 ? `%${(r.tot / netProfitExclCommissions * 100).toFixed(2)}` : "—"}
                   </div>
                   <div style={{ fontSize: 9, color: "#94A3B8", marginTop: 2 }}>
-                    {netProfit > 0 ? `₺${fmtK(r.tot)} / ₺${fmtK(netProfit)}` : "Zararda"}
+                    {netProfitExclCommissions > 0 ? `₺${fmtK(r.tot)} / ₺${fmtK(netProfitExclCommissions)}` : "Komisyonsuz da zarar"}
                   </div>
                 </div>
               </div>

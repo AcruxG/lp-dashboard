@@ -165,6 +165,15 @@ export default function YearlyModel() {
   const corpTax = preTaxProfit > 0 ? preTaxProfit * 0.25 : 0;
   const netProfit = preTaxProfit - corpTax;
 
+  // Komisyon → "kârın %'si" için referans kâr: bu komisyonlar hiç ödenmeseydi net kâr ne olurdu.
+  // netProfit zaten komisyonu düşülmüş halde olduğundan, ona bölmek "gideri düşüp sonra aynı
+  // düşülmüş kâra göre yüzde almak" anlamına gelir ve komisyon büyüdükçe oran saçma şekilde şişer
+  // (hatta netProfit sıfıra yaklaşınca %100'ü çok aşar). Bunun yerine komisyonu geri ekleyip KV'yi
+  // yeniden hesaplayarak "komisyonsuz kâr" baz alınır.
+  const preTaxProfitExclCommissions = preTaxProfit + commissionsTotal;
+  const corpTaxExclCommissions = preTaxProfitExclCommissions > 0 ? preTaxProfitExclCommissions * 0.25 : 0;
+  const netProfitExclCommissions = preTaxProfitExclCommissions - corpTaxExclCommissions;
+
   // Break-even calculation (per-student net margin)
   const danRevPerStu = numApps * pricePerAppTl;
   const combinedRevPerStu = revPerStu + danRevPerStu;
@@ -580,12 +589,12 @@ export default function YearlyModel() {
           </div>
         </div>
         <div style={{ ...S.card, padding: 16 }}>
-          <div style={S.label}>Komisyon → Net Kârın %</div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: netProfit > 0 ? "#FB923C" : "#F25C5C" }}>
-            {netProfit > 0 ? `%${(commissionsTotal / netProfit * 100).toFixed(2)}` : "—"}
+          <div style={S.label}>Komisyon → Net Kârın % (Komisyonsuz Kâra Göre)</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: netProfitExclCommissions > 0 ? "#FB923C" : "#F25C5C" }}>
+            {netProfitExclCommissions > 0 ? `%${(commissionsTotal / netProfitExclCommissions * 100).toFixed(2)}` : "—"}
           </div>
           <div style={{ fontSize: 10, color: "#94A3B8", marginTop: 2 }}>
-            {netProfit > 0 ? `₺${fmt(commissionsTotal)} / ₺${fmt(netProfit)}` : "Zararda: hesaplanamaz"}
+            {netProfitExclCommissions > 0 ? `₺${fmt(commissionsTotal)} / ₺${fmt(netProfitExclCommissions)}` : "Komisyonsuz da zarar: hesaplanamaz"}
           </div>
         </div>
       </div>
@@ -596,7 +605,7 @@ export default function YearlyModel() {
           <div style={{ fontSize: 16, fontWeight: 700, color: "#FB923C" }}>
             %{totalRev > 0 ? (salespersonCstTotal / totalRev * 100).toFixed(2) : "0.00"} satış
             <span style={{ color: "#94A3B8", marginLeft: 8 }}>·</span>{" "}
-            {netProfit > 0 ? `%${(salespersonCstTotal / netProfit * 100).toFixed(2)} kâr` : "—"}
+            {netProfitExclCommissions > 0 ? `%${(salespersonCstTotal / netProfitExclCommissions * 100).toFixed(2)} kâr` : "—"}
           </div>
         </div>
         <div style={{ ...S.card, padding: 14, borderLeft: "3px solid #FDBA74" }}>
@@ -604,7 +613,7 @@ export default function YearlyModel() {
           <div style={{ fontSize: 16, fontWeight: 700, color: "#FDBA74" }}>
             %{totalRev > 0 ? (leadReferrerCstTotal / totalRev * 100).toFixed(2) : "0.00"} satış
             <span style={{ color: "#94A3B8", marginLeft: 8 }}>·</span>{" "}
-            {netProfit > 0 ? `%${(leadReferrerCstTotal / netProfit * 100).toFixed(2)} kâr` : "—"}
+            {netProfitExclCommissions > 0 ? `%${(leadReferrerCstTotal / netProfitExclCommissions * 100).toFixed(2)} kâr` : "—"}
           </div>
         </div>
       </div>
