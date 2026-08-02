@@ -39,12 +39,13 @@ export default function DetailAnalysisPage() {
 
   // Per-student
   const perStudent = useMemo(() => detailStudents.map(s => {
-    let courseRev = 0, courseCst = 0;
+    let courseRev = 0, courseCst = 0, courseHours = 0;
     s.courseIds.forEach(cid => {
       const c = courseMap[cid];
       if (!c) return;
       courseRev += c.hours * c.pricePerHour * (1 - (c.discount || 0) / 100);
       courseCst += c.hours * c.tutorCostPerHour;
+      courseHours += c.hours;
     });
     const apps = s.numApps || 0;
     const appsRev = apps * pricePerAppTl;
@@ -53,7 +54,7 @@ export default function DetailAnalysisPage() {
     return {
       ...s,
       apps, kocH,
-      courseRev, courseCst,
+      courseRev, courseCst, courseHours,
       courseMargin: courseRev - courseCst,
       appsRev,
       kocCst,
@@ -69,10 +70,13 @@ export default function DetailAnalysisPage() {
   const danCstTotal = payMode === "wage"
     ? numConsultants * consultantWage * 12
     : Math.round(totalAppsRev * commissionPct / 100);
-  // Both commissions: ders başı sabit TL — toplam atama sayısıyla ölçeklenir
+  // Satışçı: ders başı sabit TL (atama sayısıyla ölçeklenir). Lead: ders SAATİ başı sabit TL.
   const totalCourseSalesCount = detailStudents.reduce((a, s) => a + s.courseIds.length, 0);
+  const totalHoursAssigned = detailStudents.reduce((a, s) => (
+    a + s.courseIds.reduce((b, cid) => b + ((courseMap[cid]?.hours) || 0), 0)
+  ), 0);
   const salespersonCstTotal = totalCourseSalesCount * salespersonAmount;
-  const leadReferrerCstTotal = totalCourseSalesCount * leadReferrerAmount;
+  const leadReferrerCstTotal = totalHoursAssigned * leadReferrerAmount;
   const commissionsTotal = salespersonCstTotal + leadReferrerCstTotal;
 
   const totalRev = totalCourseRev + totalAppsRev;
@@ -91,10 +95,7 @@ export default function DetailAnalysisPage() {
   const netProfitExclCommissions = preTaxProfitExclCommissions - corpTaxExclCommissions;
 
   // ── Averages from detail data ─────────────────────────────────────────────
-  const totalAssignments = detailStudents.reduce((a, s) => a + s.courseIds.length, 0);
-  const totalHoursAssigned = detailStudents.reduce((a, s) => (
-    a + s.courseIds.reduce((b, cid) => b + ((courseMap[cid]?.hours) || 0), 0)
-  ), 0);
+  const totalAssignments = totalCourseSalesCount;
   const totalEffectiveHours = detailStudents.reduce((a, s) => (
     a + s.courseIds.reduce((b, cid) => {
       const c = courseMap[cid];
@@ -155,7 +156,7 @@ export default function DetailAnalysisPage() {
     return perStudent.map(s => {
       const revShare = totalRev > 0 ? s.totalRev / totalRev : 0;
       const danCommShare = payMode === "commission" ? Math.round(s.appsRev * commissionPct / 100) : 0;
-      const salesCommShare = s.courseIds.length * (salespersonAmount + leadReferrerAmount);
+      const salesCommShare = s.courseIds.length * salespersonAmount + s.courseHours * leadReferrerAmount;
       const kdvShare = s.totalRev * 20 / 120;
       const fixedShare = fixedTotal * revShare;
       const preTax = s.totalRev - s.courseCst - s.kocCst - danCommShare - salesCommShare - kdvShare - fixedShare;
@@ -238,7 +239,7 @@ export default function DetailAnalysisPage() {
                 { k: "− Koç Gideri", v: -totalKocCst, col: "#F25C5C" },
                 { k: `− Danışman Gideri (${payMode === "wage" ? "Maaş" : `Komisyon %${commissionPct}`})`, v: -danCstTotal, col: "#F25C5C" },
                 { k: `− Satışçı Komisyonu (${totalCourseSalesCount} ders × ₺${fmt(salespersonAmount)})`, v: -salespersonCstTotal, col: "#FB923C" },
-                { k: `− Lead Getirene Ücret (${totalCourseSalesCount} ders × ₺${fmt(leadReferrerAmount)})`, v: -leadReferrerCstTotal, col: "#FB923C" },
+                { k: `− Lead Getirene Ücret (${totalHoursAssigned} saat × ₺${fmt(leadReferrerAmount)})`, v: -leadReferrerCstTotal, col: "#FB923C" },
                 { k: "− Yönetici Maaşı (yıllık)", v: -managerAnnual, col: "#F25C5C" },
                 { k: "= Brüt Kâr", v: grossProfit, col: grossProfit >= 0 ? "#FFFFFF" : "#F25C5C", bold: true },
                 { k: "− Sabit Giderler (FC)", v: -fc, col: "#FB7185" },
@@ -263,8 +264,8 @@ export default function DetailAnalysisPage() {
         {/* Commissions impact */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
           {[
-            { role: "Satışçı", col: "#FB923C", amt: salespersonAmount, tot: salespersonCstTotal },
-            { role: "Lead Getiren", col: "#FDBA74", amt: leadReferrerAmount, tot: leadReferrerCstTotal }
+            { role: "Satışçı", col: "#FB923C", amt: salespersonAmount, tot: salespersonCstTotal, unit: "ders", count: totalCourseSalesCount },
+            { role: "Lead Getiren", col: "#FDBA74", amt: leadReferrerAmount, tot: leadReferrerCstTotal, unit: "saat", count: totalHoursAssigned }
           ].map(r => (
             <div key={r.role} style={{ ...S.card, padding: 16, borderLeft: `4px solid ${r.col}` }}>
               <div style={S.label}>{r.role} — Yıllık Komisyon</div>
@@ -272,7 +273,7 @@ export default function DetailAnalysisPage() {
                 <div>
                   <div style={{ fontSize: 10, color: "#94A3B8" }}>Toplam ₺</div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: r.col }}>₺{fmt(r.tot)}</div>
-                  <div style={{ fontSize: 9, color: "#94A3B8", marginTop: 2 }}>{totalCourseSalesCount} × ₺{fmt(r.amt)}</div>
+                  <div style={{ fontSize: 9, color: "#94A3B8", marginTop: 2 }}>{r.count} {r.unit} × ₺{fmt(r.amt)}</div>
                 </div>
                 <div>
                   <div style={{ fontSize: 10, color: "#94A3B8" }}>Satışın %'si</div>

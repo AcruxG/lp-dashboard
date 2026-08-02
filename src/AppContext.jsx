@@ -44,12 +44,12 @@ export const AppProvider = ({ children }) => {
 
   // Koçluk (hocalık gibi saatlik akademik koçluk)
   // NOT: Koçluk satış fiyatı ders satış fiyatının içindedir — sadece gider tarafı modellenir.
-  const [kocLukHours, setKocLukHours] = useState(20);          // öğrenci başı ortalama saat (Yıllık)
+  const [kocLukHours, setKocLukHours] = useState(10);          // öğrenci başı ortalama saat (Yıllık)
   const [kocLukTutorCostPerHour, setKocLukTutorCostPerHour] = useState(2500);
 
-  // Satış komisyonları (her ikisi de ders başı sabit TL — satılan ders sayısıyla ölçeklenir)
+  // Satış komisyonları — satışçı ders başına, lead getiren ders SAATİ başına sabit TL
   const [salespersonAmount, setSalespersonAmount] = useState(100);   // satışçıya ders başı TL
-  const [leadReferrerAmount, setLeadReferrerAmount] = useState(100);  // lead getirene ders başı TL
+  const [leadReferrerAmount, setLeadReferrerAmount] = useState(100);  // lead getirene ders saati başı TL
 
   // Manager
   const [managerWage, setManagerWage] = useState(28000);
@@ -58,7 +58,7 @@ export const AppProvider = ({ children }) => {
   const [fcKira, setFcKira] = useState(0);
   const [fcKiraStopaj, setFcKiraStopaj] = useState(0);
   const [fcDamga, setFcDamga] = useState(1872); // One-off / Annual
-  const [fcSmmm, setFcSmmm] = useState(5704);
+  const [fcSmmm, setFcSmmm] = useState(12000);
   const [fcSmmmStopaj, setFcSmmmStopaj] = useState(0);
   const [fcIto, setFcIto] = useState(5220); // One-off / Annual
   const [fcNoter, setFcNoter] = useState(988); // One-off / Annual
@@ -66,7 +66,7 @@ export const AppProvider = ({ children }) => {
   const [fcY, setFcY] = useState(0);
   const [fcKredi, setFcKredi] = useState(0);
   const [fcKurulus, setFcKurulus] = useState(14990); // One-off / Annual
-  const [fcBagkur, setFcBagkur] = useState(1808);
+  const [fcBagkur, setFcBagkur] = useState(11808);
 
   // ── Detail mode (per-student/per-course) ──────────────────────────────────
   const [detailCourses, setDetailCourses] = useState(() => loadJSON("lp_detail_courses", SEED_COURSES));
