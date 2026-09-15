@@ -3,13 +3,15 @@
 
 export const GROUP_DEFAULTS = {
   vatRatePct: 20,                 // KDV oranı
-  eurTryFallback: 56.1636,        // 1 € = ₺ — canlı kur alınamazsa kullanılır
+  eurTryFallback: 56.1636,        // 1 € = ₺ — canlı kur alınamazsa kullanılır (Excel kuru)
+  usdTryFallback: 48.64,          // 1 $ = ₺ — canlı kur alınamazsa kullanılır (15.09.2026 kuru)
   extraPerStudentPerLesson: 300,  // Öğrenci başına hocaya ekstra ücret (₺ / ders)
   minMarginPct: 0,                // Maks indirim kuralı: 0 = başa baş (bize kalan ≥ ₺0)
   maxDiscountCapPct: 100,         // Sabit indirim tavanı (100 = tavan yok)
 };
 
-export const STUDENT_OPTIONS = [3, 4, 5];
+export const STUDENT_RANGE = { min: 1, max: 10 };  // hesaplayıcıda denenebilecek grup büyüklüğü
+export const STANDARD_STUDENTS = [3, 4, 5];         // standart sınıf mevcudu
 
 // costPerLesson: hocaya ders başı baz ödeme · pricePerLesson: öğrenci başı ders satışı (KDV dahil)
 export const GROUP_COURSES = [
@@ -34,7 +36,7 @@ export const GROUP_COURSES = [
 ];
 
 // Bir grup satışının tam dökümü (Excel HESAPLAYICI ile aynı mantık, üstüne indirim).
-export function calcGroupSale(course, { students, discountPct = 0, vatRatePct, extraPerStudentPerLesson, eurTry }) {
+export function calcGroupSale(course, { students, discountPct = 0, vatRatePct, extraPerStudentPerLesson, eurTry, usdTry }) {
   const vat = vatRatePct / 100;
   const pricePerLesson = course.pricePerLesson * (1 - discountPct / 100);
   const pricePerStudent = course.lessons * pricePerLesson;
@@ -45,6 +47,7 @@ export function calcGroupSale(course, { students, discountPct = 0, vatRatePct, e
   const netRevenue = grossTotal - vatAmount;               // KDV hariç
   const keep = netRevenue - tutorTotal;                    // KDV sonrası bize kalan
   const toEur = v => (eurTry ? v / eurTry : 0);
+  const toUsd = v => (usdTry ? v / usdTry : 0);
   return {
     listPricePerStudent: course.lessons * course.pricePerLesson,
     pricePerLesson,
@@ -60,6 +63,9 @@ export function calcGroupSale(course, { students, discountPct = 0, vatRatePct, e
     pricePerStudentEur: toEur(pricePerStudent),
     grossTotalEur: toEur(grossTotal),
     keepEur: toEur(keep),
+    pricePerStudentUsd: toUsd(pricePerStudent),
+    grossTotalUsd: toUsd(grossTotal),
+    keepUsd: toUsd(keep),
   };
 }
 

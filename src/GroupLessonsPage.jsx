@@ -4,7 +4,7 @@ import {
   ReferenceLine, ResponsiveContainer
 } from "recharts";
 import {
-  GROUP_COURSES, GROUP_DEFAULTS, STUDENT_OPTIONS, calcGroupSale, calcMaxDiscount
+  GROUP_COURSES, GROUP_DEFAULTS, STUDENT_RANGE, STANDARD_STUDENTS, calcGroupSale, calcMaxDiscount
 } from "./groupLessonsModel";
 
 const S = {
@@ -12,15 +12,10 @@ const S = {
   card: { background: "#0B202B", border: "1px solid #14465B", borderRadius: 10 },
   label: { fontSize: 10, color: "#94A3B8", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 },
   hint: { fontSize: 10, color: "#94A3B8", marginTop: 6 },
+  fx: { fontSize: 12, color: "#CBD5E1", fontWeight: 600, marginTop: 4 },
   sectionTitle: { fontSize: 16, fontWeight: 700, color: "#FFFFFF", marginTop: 32, marginBottom: 14, borderBottom: "1px solid #14465B", paddingBottom: 8 },
   select: { width: "100%", background: "#060A0D", border: "1px solid #14465B", borderRadius: 6, color: "#FFFFFF", fontSize: 14, fontWeight: 600, fontFamily: "inherit", padding: "10px 12px", outline: "none", colorScheme: "dark" },
   numInput: { width: "100%", background: "#060A0D", border: "1px solid #14465B", borderRadius: 6, color: "#FFFFFF", fontSize: 15, fontWeight: 700, fontFamily: "inherit", padding: "8px 10px", outline: "none" },
-  toggle: active => ({
-    flex: 1, padding: "10px 0", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", borderRadius: 6,
-    border: active ? "1px solid #048C8C" : "1px solid #14465B",
-    background: active ? "#048C8C" : "transparent",
-    color: active ? "#FFFFFF" : "#94A3B8",
-  }),
   btn: { background: "transparent", border: "1px solid #14465B", color: "#CBD5E1", padding: "6px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", borderRadius: 6, fontFamily: "inherit" },
   chip: color => ({ fontSize: 11, padding: "4px 10px", borderRadius: 12, border: `1px solid ${color}44`, background: `${color}14`, color }),
   th: { padding: "10px 12px", textAlign: "right", color: "#94A3B8", fontWeight: 600, fontSize: 10, textTransform: "uppercase", whiteSpace: "nowrap" },
@@ -29,7 +24,15 @@ const S = {
 
 const CAT_COLORS = { SAT: "#FBBF24", AP: "#38BDF8", IMAT: "#C084FC" };
 const N_COLORS = { 3: "#38BDF8", 4: "#34D399", 5: "#C084FC" };
+const OFF_STANDARD = "#FB923C";
+const nColor = n => N_COLORS[n] ?? OFF_STANDARD;
 const CATEGORIES = [...new Set(GROUP_COURSES.map(c => c.category))];
+const STD_MIN = Math.min(...STANDARD_STUDENTS);
+const STD_MAX = Math.max(...STANDARD_STUDENTS);
+// Karşılaştırma tablosu/grafiği: standart büyüklükler + (standart dışıysa) seçili öğrenci sayısı
+const compareSizes = students => (STANDARD_STUDENTS.includes(students) ? STANDARD_STUDENTS : [...STANDARD_STUDENTS, students].sort((a, b) => a - b));
+
+const SUM_KEYS = ["grossTotal", "tutorTotal", "profitPreVat", "vatAmount", "netRevenue", "keep", "grossTotalEur", "keepEur", "grossTotalUsd", "keepUsd"];
 
 const DEFAULT_SETTINGS = {
   vatRatePct: GROUP_DEFAULTS.vatRatePct,
@@ -49,6 +52,7 @@ const fmtK = v => {
 const money = sym => v => { const r = Math.round(v); return `${r < 0 ? "−" : ""}${sym}${fmt(Math.abs(r))}`; };
 const tl = money("₺");
 const eur = money("€");
+const usd = money("$");
 const pct = v => `${v < -0.05 ? "−" : ""}%${fmtPct(Math.abs(v))}`;
 const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
 const parseDec = t => parseFloat(String(t).replace(/\s/g, "").replace(",", "."));
@@ -69,6 +73,50 @@ function NumberField({ value, onValue, display, parse = parseDec, commitOnBlur =
       onBlur={() => { if (draft !== null && commitOnBlur) commit(draft); setDraft(null); }}
       onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur(); }}
     />
+  );
+}
+
+// Tarayıcının range thumb'ı ~16px: tick etiketleri ve standart bandı thumb merkezine hizalanır.
+const THUMB_PX = 16;
+const sliderPos = (v, min, max) => {
+  const p = (v - min) / (max - min);
+  return { p, left: `calc(${p * 100}% + ${THUMB_PX / 2 - p * THUMB_PX}px)` };
+};
+
+function StudentSlider({ value, onChange }) {
+  const { min, max } = STUDENT_RANGE;
+  const standard = STANDARD_STUDENTS.includes(value);
+  const lo = sliderPos(STD_MIN, min, max), hi = sliderPos(STD_MAX, min, max);
+  const ticks = Array.from({ length: max - min + 1 }, (_, i) => min + i);
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <input type="range" min={min} max={max} step={1} value={value}
+            onChange={e => onChange(+e.target.value)}
+            style={{ width: "100%", margin: 0, accentColor: standard ? "#048C8C" : OFF_STANDARD, cursor: "pointer" }}
+            aria-label="Öğrenci sayısı" />
+          <div style={{ position: "relative", height: 20, marginTop: 4, fontSize: 10 }}>
+            <div style={{
+              position: "absolute", top: 0, bottom: 0, left: `calc(${lo.left} - 10px)`,
+              width: `calc(${(hi.p - lo.p) * 100}% - ${(hi.p - lo.p) * THUMB_PX}px + 20px)`,
+              borderRadius: 10, background: "#048C8C22", border: "1px solid #048C8C55"
+            }} title="Standart sınıf mevcudu" />
+            {ticks.map(t => (
+              <span key={t} style={{
+                position: "absolute", top: "50%", left: sliderPos(t, min, max).left, transform: "translate(-50%, -50%)",
+                color: t === value ? "#FFFFFF" : STANDARD_STUDENTS.includes(t) ? "#34D399" : "#64748B",
+                fontWeight: t === value ? 700 : 400,
+              }}>{t}</span>
+            ))}
+          </div>
+        </div>
+        <span style={{ fontSize: 26, fontWeight: 700, minWidth: 34, textAlign: "center", color: standard ? "#048C8C" : OFF_STANDARD }}>{value}</span>
+      </div>
+      <div style={{ ...S.hint, color: standard ? "#94A3B8" : OFF_STANDARD }}>
+        {standard ? `Standart sınıf mevcudu ${STD_MIN}–${STD_MAX} kişi` : `⚠ Standart sınıf mevcudu (${STD_MIN}–${STD_MAX}) dışında`}
+      </div>
+    </div>
   );
 }
 
@@ -94,39 +142,68 @@ function DiscountBar({ discountPct, maxDiscountPct, ok }) {
   );
 }
 
-export default function GroupLessonsPage() {
-  const [courseId, setCourseId] = useState("ap-calc");
-  const [students, setStudents] = useState(STUDENT_OPTIONS[0]);
-  const [discountPct, setDiscountPct] = useState(0);
-  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [liveEur, setLiveEur] = useState(null);
-  const [manualEur, setManualEur] = useState(null);
-  const [rateFetch, setRateFetch] = useState("loading");
-  const calcRef = useRef(null);
-
+// Canlı kur (1 base = ₺) · status: loading | live | failed
+function useLiveTryRate(base) {
+  const [live, setLive] = useState({ rate: null, status: "loading" });
   useEffect(() => {
     let cancelled = false;
-    fetch("https://api.exchangerate-api.com/v4/latest/EUR")
+    fetch(`https://api.exchangerate-api.com/v4/latest/${base}`)
       .then(res => res.json())
       .then(data => {
         if (cancelled) return;
-        if (data?.rates?.TRY) { setLiveEur(Math.round(data.rates.TRY * 10000) / 10000); setRateFetch("live"); }
-        else setRateFetch("failed");
+        const rate = data?.rates?.TRY;
+        setLive(rate ? { rate: Math.round(rate * 10000) / 10000, status: "live" } : { rate: null, status: "failed" });
       })
-      .catch(() => { if (!cancelled) setRateFetch("failed"); });
+      .catch(() => { if (!cancelled) setLive({ rate: null, status: "failed" }); });
     return () => { cancelled = true; };
-  }, []);
+  }, [base]);
+  return live;
+}
 
-  const eurTry = manualEur ?? liveEur ?? GROUP_DEFAULTS.eurTryFallback;
-  const rateStatus = manualEur != null ? ["MANUEL", "#94A3B8"]
-    : liveEur != null ? ["CANLI", "#34D399"]
-    : rateFetch === "loading" ? ["YÜKLENİYOR", "#94A3B8"] : ["EXCEL KURU", "#FBBF24"];
-  const settingsChanged = manualEur != null || Object.keys(DEFAULT_SETTINGS).some(k => settings[k] !== DEFAULT_SETTINGS[k]);
+const rateBadge = (manual, live, fallbackLabel) => (
+  manual != null ? ["MANUEL", "#94A3B8"]
+    : live.rate != null ? ["CANLI", "#34D399"]
+    : live.status === "loading" ? ["YÜKLENİYOR", "#94A3B8"] : [fallbackLabel, "#FBBF24"]
+);
+
+function RateField({ symbol, name, value, manual, live, badge, onManual }) {
+  return (
+    <div>
+      <div style={S.label}>1 {symbol} = ₺ <span style={{ color: badge[1] }}>● {badge[0]}</span></div>
+      <NumberField value={value} display={fmtPlain} commitOnBlur onValue={v => { if (v > 0) onManual(v); }} style={S.numInput} aria-label={`${name} kuru`} />
+      {manual != null && (
+        <button style={{ ...S.btn, marginTop: 6 }} onClick={() => onManual(null)}>
+          {live.rate != null ? "Canlı kura dön" : "Varsayılan kura dön"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+export default function GroupLessonsPage() {
+  const [courseId, setCourseId] = useState("ap-calc");
+  const [students, setStudents] = useState(STANDARD_STUDENTS[0]);
+  const [discountPct, setDiscountPct] = useState(0);
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [manualEur, setManualEur] = useState(null);
+  const [manualUsd, setManualUsd] = useState(null);
+  const liveEur = useLiveTryRate("EUR");
+  const liveUsd = useLiveTryRate("USD");
+  const calcRef = useRef(null);
+
+  const eurTry = manualEur ?? liveEur.rate ?? GROUP_DEFAULTS.eurTryFallback;
+  const usdTry = manualUsd ?? liveUsd.rate ?? GROUP_DEFAULTS.usdTryFallback;
+  const eurBadge = rateBadge(manualEur, liveEur, "EXCEL KURU");
+  const usdBadge = rateBadge(manualUsd, liveUsd, "VARSAYILAN");
+  const settingsChanged = manualEur != null || manualUsd != null || Object.keys(DEFAULT_SETTINGS).some(k => settings[k] !== DEFAULT_SETTINGS[k]);
   const setSetting = (key, lo, hi) => v => setSettings(prev => ({ ...prev, [key]: clamp(v, lo, hi) }));
+  const resetSettings = () => { setSettings(DEFAULT_SETTINGS); setManualEur(null); setManualUsd(null); };
 
   const course = GROUP_COURSES.find(c => c.id === courseId) ?? GROUP_COURSES[0];
-  const sale = calcGroupSale(course, { ...settings, eurTry, students, discountPct });
+  const standardSize = STANDARD_STUDENTS.includes(students);
+  const sizes = compareSizes(students);
+  const sale = calcGroupSale(course, { ...settings, eurTry, usdTry, students, discountPct });
   const limit = calcMaxDiscount(course, { ...settings, students });
   const ok = !limit.listBelowFloor && discountPct <= limit.maxDiscountPct + 1e-9;
   const keepColor = sale.keep >= 0 ? "#34D399" : "#F25C5C";
@@ -156,35 +233,33 @@ export default function GroupLessonsPage() {
     };
   }
 
+  // Tüm grup büyüklükleri (1–10) önceden hesaplanır; grafik/tablo yalnızca `sizes` kadarını gösterir.
   const chartData = useMemo(() => {
     const c = GROUP_COURSES.find(x => x.id === courseId) ?? GROUP_COURSES[0];
     return Array.from({ length: 51 }, (_, i) => {
       const row = { d: i * 2 };
-      for (const n of STUDENT_OPTIONS) row[`n${n}`] = Math.round(calcGroupSale(c, { ...settings, eurTry: 0, students: n, discountPct: i * 2 }).keep);
+      for (let n = STUDENT_RANGE.min; n <= STUDENT_RANGE.max; n++) {
+        row[`n${n}`] = Math.round(calcGroupSale(c, { ...settings, students: n, discountPct: i * 2 }).keep);
+      }
       return row;
     });
   }, [courseId, settings]);
 
-  const maxRows = useMemo(() => GROUP_COURSES.map(c => ({
-    course: c,
-    byN: Object.fromEntries(STUDENT_OPTIONS.map(n => [n, calcMaxDiscount(c, { ...settings, students: n })])),
-  })), [settings]);
+  const maxRows = useMemo(() => GROUP_COURSES.map(c => {
+    const byN = {};
+    for (let n = STUDENT_RANGE.min; n <= STUDENT_RANGE.max; n++) byN[n] = calcMaxDiscount(c, { ...settings, students: n });
+    return { course: c, byN };
+  }), [settings]);
 
   const analysisRows = useMemo(
-    () => GROUP_COURSES.map(c => ({ course: c, sale: calcGroupSale(c, { ...settings, eurTry, students, discountPct }) })),
-    [settings, eurTry, students, discountPct]
+    () => GROUP_COURSES.map(c => ({ course: c, sale: calcGroupSale(c, { ...settings, eurTry, usdTry, students, discountPct }) })),
+    [settings, eurTry, usdTry, students, discountPct]
   );
-  const totals = analysisRows.reduce((a, { course: c, sale: s }) => ({
-    lessons: a.lessons + c.lessons,
-    grossTotal: a.grossTotal + s.grossTotal,
-    tutorTotal: a.tutorTotal + s.tutorTotal,
-    profitPreVat: a.profitPreVat + s.profitPreVat,
-    vatAmount: a.vatAmount + s.vatAmount,
-    netRevenue: a.netRevenue + s.netRevenue,
-    keep: a.keep + s.keep,
-    grossTotalEur: a.grossTotalEur + s.grossTotalEur,
-    keepEur: a.keepEur + s.keepEur,
-  }), { lessons: 0, grossTotal: 0, tutorTotal: 0, profitPreVat: 0, vatAmount: 0, netRevenue: 0, keep: 0, grossTotalEur: 0, keepEur: 0 });
+  const totals = analysisRows.reduce((a, { course: c, sale: s }) => {
+    const next = { lessons: a.lessons + c.lessons };
+    for (const k of SUM_KEYS) next[k] = a[k] + s[k];
+    return next;
+  }, { lessons: 0, ...Object.fromEntries(SUM_KEYS.map(k => [k, 0])) });
 
   const openInCalculator = id => {
     setCourseId(id);
@@ -204,7 +279,9 @@ export default function GroupLessonsPage() {
     { k: `KDV (%${fmtPlain(settings.vatRatePct)})`, v: tl(sale.vatAmount), col: "#FBBF24" },
     { k: "KDV sonrası bize kalan", v: tl(sale.keep), col: keepColor, bold: true },
     { k: "Toplam miktar (€)", v: eur(sale.grossTotalEur), sep: true },
+    { k: "Toplam miktar ($)", v: usd(sale.grossTotalUsd) },
     { k: "KDV sonrası bize kalan (€)", v: eur(sale.keepEur), col: keepColor },
+    { k: "KDV sonrası bize kalan ($)", v: usd(sale.keepUsd), col: keepColor },
   ];
 
   return (
@@ -222,10 +299,12 @@ export default function GroupLessonsPage() {
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginTop: 14 }}>
         <span style={S.chip("#CBD5E1")}>KDV %{fmtPlain(settings.vatRatePct)}</span>
         <span style={S.chip("#CBD5E1")}>Hoca ekstra {tl(settings.extraPerStudentPerLesson)} / öğr. / ders</span>
-        <span style={S.chip("#CBD5E1")}>
-          1 € = ₺{fmtRate(eurTry)}{" "}
-          <span style={{ color: rateStatus[1], fontSize: 9, fontWeight: 700 }}>● {rateStatus[0]}</span>
-        </span>
+        {[["€", eurTry, eurBadge], ["$", usdTry, usdBadge]].map(([sym, rate, badge]) => (
+          <span key={sym} style={S.chip("#CBD5E1")}>
+            1 {sym} = ₺{fmtRate(rate)}{" "}
+            <span style={{ color: badge[1], fontSize: 9, fontWeight: 700 }}>● {badge[0]}</span>
+          </span>
+        ))}
         <span style={S.chip("#34D399")}>Maks indirim: {ruleSummary}</span>
         {settingsChanged && <span style={S.chip("#FBBF24")}>Varsayılandan farklı</span>}
         <button style={{ ...S.btn, marginLeft: "auto" }} onClick={() => setSettingsOpen(o => !o)} aria-expanded={settingsOpen}>
@@ -235,13 +314,13 @@ export default function GroupLessonsPage() {
 
       {/* Settings */}
       {settingsOpen && (
-        <div style={{ ...S.card, padding: 16, marginTop: 12, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 14 }}>
+        <div style={{ ...S.card, padding: 16, marginTop: 12, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 14 }}>
           <div>
             <div style={S.label}>KDV Oranı (%)</div>
             <NumberField value={settings.vatRatePct} display={fmtPlain} commitOnBlur onValue={setSetting("vatRatePct", 0, 100)} style={S.numInput} aria-label="KDV oranı" />
           </div>
           <div>
-            <div style={S.label}>Hocaya Ekstra (₺ / öğr. / ders)</div>
+            <div style={S.label}>Hoca Ekstra ₺/öğr./ders</div>
             <NumberField value={settings.extraPerStudentPerLesson} display={fmtPlain} commitOnBlur onValue={setSetting("extraPerStudentPerLesson", 0, 1e9)} style={S.numInput} aria-label="Öğrenci başına hocaya ekstra ücret" />
           </div>
           <div>
@@ -254,17 +333,11 @@ export default function GroupLessonsPage() {
             <NumberField value={settings.maxDiscountCapPct} display={fmtPlain} commitOnBlur onValue={setSetting("maxDiscountCapPct", 0, 100)} style={S.numInput} aria-label="Maksimum indirim tavanı" />
             <div style={S.hint}>100 = tavan yok</div>
           </div>
-          <div>
-            <div style={S.label}>1 € = ₺ <span style={{ color: rateStatus[1] }}>● {rateStatus[0]}</span></div>
-            <NumberField value={eurTry} display={fmtPlain} commitOnBlur onValue={v => { if (v > 0) setManualEur(v); }} style={S.numInput} aria-label="Euro kuru" />
-            {manualEur != null && liveEur != null && (
-              <button style={{ ...S.btn, marginTop: 6 }} onClick={() => setManualEur(null)}>Canlı kura dön</button>
-            )}
-          </div>
+          <RateField symbol="€" name="Euro" value={eurTry} manual={manualEur} live={liveEur} badge={eurBadge} onManual={setManualEur} />
+          <RateField symbol="$" name="Dolar" value={usdTry} manual={manualUsd} live={liveUsd} badge={usdBadge} onManual={setManualUsd} />
           <div style={{ gridColumn: "1 / -1", display: "flex", flexWrap: "wrap", gap: 10, justifyContent: "space-between", alignItems: "center" }}>
             <span style={S.hint}>Değişiklikler yalnızca bu oturumda geçerli; sayfa yenilenince resmi değerlere döner.</span>
-            <button style={{ ...S.btn, opacity: settingsChanged ? 1 : 0.4 }} disabled={!settingsChanged}
-              onClick={() => { setSettings(DEFAULT_SETTINGS); setManualEur(null); }}>
+            <button style={{ ...S.btn, opacity: settingsChanged ? 1 : 0.4 }} disabled={!settingsChanged} onClick={resetSettings}>
               Varsayılanlara dön
             </button>
           </div>
@@ -295,12 +368,7 @@ export default function GroupLessonsPage() {
 
         <div>
           <div style={S.label}>Öğrenci Sayısı</div>
-          <div style={{ display: "flex", gap: 8 }}>
-            {STUDENT_OPTIONS.map(n => (
-              <button key={n} onClick={() => setStudents(n)} style={S.toggle(students === n)} aria-pressed={students === n}>{n}</button>
-            ))}
-          </div>
-          <div style={S.hint}>Sınıf mevcudu {STUDENT_OPTIONS[0]}–{STUDENT_OPTIONS[STUDENT_OPTIONS.length - 1]} kişi</div>
+          <StudentSlider value={students} onChange={setStudents} />
         </div>
 
         <div>
@@ -340,6 +408,11 @@ export default function GroupLessonsPage() {
           <div style={{ fontSize: 15, fontWeight: 700, color: status.color }}>{status.title}</div>
           <div style={{ fontSize: 11, color: "#CBD5E1" }}>{status.detail}</div>
         </div>
+        {!standardSize && (
+          <div style={{ fontSize: 11, color: OFF_STANDARD, marginTop: 6 }}>
+            ⚠ {students} öğrenci — standart sınıf mevcudu ({STD_MIN}–{STD_MAX}) dışında
+          </div>
+        )}
         <DiscountBar discountPct={discountPct} maxDiscountPct={limit.maxDiscountPct} ok={ok} />
       </div>
 
@@ -348,25 +421,31 @@ export default function GroupLessonsPage() {
         <div style={{ ...S.card, padding: 16, borderTop: "4px solid #38BDF8" }}>
           <div style={S.label}>Öğrenci Başı Fiyat (KDV dahil)</div>
           <div style={{ fontSize: 24, fontWeight: 700, color: "#38BDF8" }}>{tl(sale.pricePerStudent)}</div>
+          <div style={S.fx}>{eur(sale.pricePerStudentEur)} · {usd(sale.pricePerStudentUsd)}</div>
           <div style={S.hint}>
             {discountPct > 0 && <span style={{ textDecoration: "line-through", marginRight: 6 }}>{tl(sale.listPricePerStudent)}</span>}
-            {course.lessons} × {tl(sale.pricePerLesson)} · {eur(sale.pricePerStudentEur)}
+            {course.lessons} × {tl(sale.pricePerLesson)}
           </div>
         </div>
         <div style={{ ...S.card, padding: 16, borderTop: "4px solid #048C8C" }}>
           <div style={S.label}>Grup Toplamı (KDV dahil)</div>
           <div style={{ fontSize: 24, fontWeight: 700, color: "#FFFFFF" }}>{tl(sale.grossTotal)}</div>
-          <div style={S.hint}>{students} öğrenci · {eur(sale.grossTotalEur)}</div>
+          <div style={S.fx}>{eur(sale.grossTotalEur)} · {usd(sale.grossTotalUsd)}</div>
+          <div style={{ ...S.hint, color: standardSize ? S.hint.color : OFF_STANDARD }}>
+            {students} öğrenci{standardSize ? "" : " · standart dışı"}
+          </div>
         </div>
         <div style={{ ...S.card, padding: 16, borderTop: `4px solid ${keepColor}` }}>
           <div style={S.label}>KDV Sonrası Bize Kalan</div>
           <div style={{ fontSize: 24, fontWeight: 700, color: keepColor }}>{tl(sale.keep)}</div>
-          <div style={S.hint}>{eur(sale.keepEur)} · marj {pct(sale.marginPct)}</div>
+          <div style={{ ...S.fx, color: keepColor }}>{eur(sale.keepEur)} · {usd(sale.keepUsd)}</div>
+          <div style={S.hint}>marj {pct(sale.marginPct)}</div>
         </div>
         <div style={{ ...S.card, padding: 16, borderTop: "4px solid #34D399" }}>
           <div style={S.label}>Maks İndirim</div>
           <div style={{ fontSize: 24, fontWeight: 700, color: "#34D399" }}>%{fmtPct(limit.maxDiscountPct)}</div>
-          <div style={S.hint}>Taban {tl(limit.floorPricePerStudent)} / öğrenci · {limitReason}</div>
+          <div style={S.fx}>Taban {tl(limit.floorPricePerStudent)} / öğrenci</div>
+          <div style={S.hint}>{limitReason}</div>
         </div>
       </div>
 
@@ -403,8 +482,8 @@ export default function GroupLessonsPage() {
               <Legend wrapperStyle={{ fontSize: 11, color: "#CBD5E1", paddingTop: 6 }} verticalAlign="top" height={26} />
               <ReferenceLine y={0} stroke="#FBBF24" strokeDasharray="5 5" />
               <ReferenceLine x={discountPct} stroke="#F472B6" strokeDasharray="3 3" />
-              {STUDENT_OPTIONS.map(n => (
-                <Line key={n} type="linear" dataKey={`n${n}`} name={`${n} öğrenci`} stroke={N_COLORS[n]} dot={false}
+              {sizes.map(n => (
+                <Line key={n} type="linear" dataKey={`n${n}`} name={`${n} öğrenci`} stroke={nColor(n)} dot={false}
                   strokeWidth={n === students ? 3 : 1.5} strokeOpacity={n === students ? 1 : 0.45} isAnimationActive={false} />
               ))}
             </LineChart>
@@ -415,20 +494,21 @@ export default function GroupLessonsPage() {
       {/* Max discount table */}
       <div style={S.sectionTitle}>Maks İndirim &amp; Taban Fiyat — Tüm Dersler</div>
       <div style={{ ...S.card, overflowX: "auto" }}>
-        <table style={{ width: "100%", minWidth: 860, borderCollapse: "collapse", fontSize: 11 }}>
+        <table style={{ width: "100%", minWidth: 350 + sizes.length * 170, borderCollapse: "collapse", fontSize: 11 }}>
           <thead>
             <tr style={{ background: "#060A0D" }}>
               <th style={{ ...S.th, textAlign: "left" }} rowSpan={2}>Grup Programı</th>
               <th style={S.th} rowSpan={2}>Ders Miktarı</th>
               <th style={S.th} rowSpan={2}>Liste / Öğrenci</th>
-              {STUDENT_OPTIONS.map(n => (
-                <th key={n} colSpan={2} style={{ ...S.th, textAlign: "center", color: n === students ? N_COLORS[n] : "#94A3B8", borderLeft: "1px solid #14465B" }}>
+              {sizes.map(n => (
+                <th key={n} colSpan={2} style={{ ...S.th, textAlign: "center", color: n === students ? nColor(n) : "#94A3B8", borderLeft: "1px solid #14465B" }}>
                   {n} Öğrenci
+                  {!STANDARD_STUDENTS.includes(n) && <span style={{ color: OFF_STANDARD, marginLeft: 6, fontSize: 9 }}>· standart dışı</span>}
                 </th>
               ))}
             </tr>
             <tr style={{ background: "#060A0D", borderBottom: "1px solid #14465B" }}>
-              {STUDENT_OPTIONS.map(n => [
+              {sizes.map(n => [
                 <th key={`${n}m`} style={{ ...S.th, borderLeft: "1px solid #14465B" }}>Maks %</th>,
                 <th key={`${n}t`} style={S.th}>Taban / Öğr.</th>,
               ])}
@@ -447,7 +527,7 @@ export default function GroupLessonsPage() {
                   </td>
                   <td style={{ ...S.td, color: "#CBD5E1" }}>{c.lessons}</td>
                   <td style={{ ...S.td, color: "#38BDF8" }}>{tl(c.lessons * c.pricePerLesson)}</td>
-                  {STUDENT_OPTIONS.map(n => {
+                  {sizes.map(n => {
                     const m = byN[n], active = n === students;
                     return [
                       <td key={`${n}m`} style={{ ...S.td, borderLeft: "1px solid #14465B", color: m.listBelowFloor ? "#F25C5C" : active ? "#34D399" : "#CBD5E1", fontWeight: active ? 700 : 400 }}>
@@ -468,12 +548,13 @@ export default function GroupLessonsPage() {
       {/* Analysis table */}
       <div style={S.sectionTitle}>
         Grup Analizi — {students} öğrenci{discountPct > 0 ? ` · %${fmtPct(discountPct)} indirim` : " · liste fiyatı"}
+        {!standardSize && <span style={{ color: OFF_STANDARD, fontSize: 11, fontWeight: 600, marginLeft: 8 }}>standart dışı</span>}
       </div>
       <div style={{ ...S.card, overflowX: "auto" }}>
-        <table style={{ width: "100%", minWidth: 1080, borderCollapse: "collapse", fontSize: 11 }}>
+        <table style={{ width: "100%", minWidth: 1280, borderCollapse: "collapse", fontSize: 11 }}>
           <thead>
             <tr style={{ background: "#060A0D", borderBottom: "1px solid #14465B" }}>
-              {["Grup Programı", "Ders Miktarı", "Öğr. Başı Fiyat", "Grup Toplamı", "Hoca Ödemesi", "Kâr (KDV Öncesi)", "KDV", "Bize Kalan", "Toplam (€)", "Bize Kalan (€)", "Marj"].map((h, i) => (
+              {["Grup Programı", "Ders Miktarı", "Öğr. Başı Fiyat", "Grup Toplamı", "Hoca Ödemesi", "Kâr (KDV Öncesi)", "KDV", "Bize Kalan", "Toplam (€)", "Toplam ($)", "Bize Kalan (€)", "Bize Kalan ($)", "Marj"].map((h, i) => (
                 <th key={i} style={{ ...S.th, textAlign: i === 0 ? "left" : "right" }}>{h}</th>
               ))}
             </tr>
@@ -495,7 +576,9 @@ export default function GroupLessonsPage() {
                   <td style={{ ...S.td, color: "#FBBF24" }}>{tl(s.vatAmount)}</td>
                   <td style={{ ...S.td, color: col, fontWeight: 700 }}>{tl(s.keep)}</td>
                   <td style={{ ...S.td, color: "#CBD5E1" }}>{eur(s.grossTotalEur)}</td>
+                  <td style={{ ...S.td, color: "#CBD5E1" }}>{usd(s.grossTotalUsd)}</td>
                   <td style={{ ...S.td, color: col }}>{eur(s.keepEur)}</td>
+                  <td style={{ ...S.td, color: col }}>{usd(s.keepUsd)}</td>
                   <td style={{ ...S.td, color: col }}>{pct(s.marginPct)}</td>
                 </tr>
               );
@@ -510,7 +593,9 @@ export default function GroupLessonsPage() {
               <td style={{ ...S.td, color: "#FBBF24", fontWeight: 700 }}>{tl(totals.vatAmount)}</td>
               <td style={{ ...S.td, color: totals.keep >= 0 ? "#34D399" : "#F25C5C", fontWeight: 700 }}>{tl(totals.keep)}</td>
               <td style={{ ...S.td, color: "#CBD5E1", fontWeight: 700 }}>{eur(totals.grossTotalEur)}</td>
+              <td style={{ ...S.td, color: "#CBD5E1", fontWeight: 700 }}>{usd(totals.grossTotalUsd)}</td>
               <td style={{ ...S.td, color: totals.keep >= 0 ? "#34D399" : "#F25C5C", fontWeight: 700 }}>{eur(totals.keepEur)}</td>
+              <td style={{ ...S.td, color: totals.keep >= 0 ? "#34D399" : "#F25C5C", fontWeight: 700 }}>{usd(totals.keepUsd)}</td>
               <td style={{ ...S.td, color: "#CBD5E1", fontWeight: 700 }}>{pct(totals.netRevenue > 0 ? (totals.keep / totals.netRevenue) * 100 : 0)}</td>
             </tr>
           </tbody>
