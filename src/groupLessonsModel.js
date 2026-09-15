@@ -35,8 +35,25 @@ export const GROUP_COURSES = [
   { id: "imat",        category: "IMAT", name: "IMAT Grup Dersi",                         lessons: 100, costPerLesson: 2000, pricePerLesson: 3000, source: "https://veritasedu.net/kurslarimiz/imat-sinavi" },
 ];
 
+// Tüm derslerde aynıysa o değer; farklıysa null (= her ders kendi resmi değeri).
+export function uniformCourseValue(key) {
+  const values = new Set(GROUP_COURSES.map(c => c[key]));
+  return values.size === 1 ? [...values][0] : null;
+}
+
+// Sayfa ayarındaki ders maliyeti / satış fiyatı dersin resmi değerinin yerine geçer (null/undefined = resmi değer).
+export function priceCourse(course, { costPerLesson, pricePerLesson } = {}) {
+  return {
+    ...course,
+    costPerLesson: costPerLesson ?? course.costPerLesson,
+    pricePerLesson: pricePerLesson ?? course.pricePerLesson,
+  };
+}
+
 // Bir grup satışının tam dökümü (Excel HESAPLAYICI ile aynı mantık, üstüne indirim).
-export function calcGroupSale(course, { students, discountPct = 0, vatRatePct, extraPerStudentPerLesson, eurTry, usdTry }) {
+export function calcGroupSale(baseCourse, opts) {
+  const { students, discountPct = 0, vatRatePct, extraPerStudentPerLesson, eurTry, usdTry } = opts;
+  const course = priceCourse(baseCourse, opts);
   const vat = vatRatePct / 100;
   const pricePerLesson = course.pricePerLesson * (1 - discountPct / 100);
   const pricePerStudent = course.lessons * pricePerLesson;
@@ -71,7 +88,9 @@ export function calcGroupSale(course, { students, discountPct = 0, vatRatePct, e
 
 // Maks indirim: bize kalan ≥ minMarginPct × KDV hariç gelir kuralını sağlayan en düşük fiyat,
 // varsa sabit tavanla birlikte. İndirim fiyatı doğrusal düşürür, hoca ödemesi sabit kalır.
-export function calcMaxDiscount(course, { students, vatRatePct, extraPerStudentPerLesson, minMarginPct = 0, maxDiscountCapPct = 100 }) {
+export function calcMaxDiscount(baseCourse, opts) {
+  const { students, vatRatePct, extraPerStudentPerLesson, minMarginPct = 0, maxDiscountCapPct = 100 } = opts;
+  const course = priceCourse(baseCourse, opts);
   const vat = vatRatePct / 100;
   const margin = Math.min(Math.max(minMarginPct, 0), 99) / 100;
   const capPct = Math.min(Math.max(maxDiscountCapPct, 0), 100);

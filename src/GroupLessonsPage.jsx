@@ -4,7 +4,8 @@ import {
   ReferenceLine, ResponsiveContainer
 } from "recharts";
 import {
-  GROUP_COURSES, GROUP_DEFAULTS, STUDENT_RANGE, STANDARD_STUDENTS, calcGroupSale, calcMaxDiscount
+  GROUP_COURSES, GROUP_DEFAULTS, STUDENT_RANGE, STANDARD_STUDENTS,
+  calcGroupSale, calcMaxDiscount, priceCourse, uniformCourseValue
 } from "./groupLessonsModel";
 
 const S = {
@@ -15,7 +16,8 @@ const S = {
   fx: { fontSize: 12, color: "#CBD5E1", fontWeight: 600, marginTop: 4 },
   sectionTitle: { fontSize: 16, fontWeight: 700, color: "#FFFFFF", marginTop: 32, marginBottom: 14, borderBottom: "1px solid #14465B", paddingBottom: 8 },
   select: { width: "100%", background: "#060A0D", border: "1px solid #14465B", borderRadius: 6, color: "#FFFFFF", fontSize: 14, fontWeight: 600, fontFamily: "inherit", padding: "10px 12px", outline: "none", colorScheme: "dark" },
-  numInput: { width: "100%", background: "#060A0D", border: "1px solid #14465B", borderRadius: 6, color: "#FFFFFF", fontSize: 15, fontWeight: 700, fontFamily: "inherit", padding: "8px 10px", outline: "none" },
+  // border longhand: inputStyle() yalnızca borderColor'ı değiştirir (shorthand/longhand karışınca React rengi siler)
+  numInput: { width: "100%", background: "#060A0D", borderWidth: 1, borderStyle: "solid", borderColor: "#14465B", borderRadius: 6, color: "#FFFFFF", fontSize: 15, fontWeight: 700, fontFamily: "inherit", padding: "8px 10px", outline: "none" },
   btn: { background: "transparent", border: "1px solid #14465B", color: "#CBD5E1", padding: "6px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", borderRadius: 6, fontFamily: "inherit" },
   chip: color => ({ fontSize: 11, padding: "4px 10px", borderRadius: 12, border: `1px solid ${color}44`, background: `${color}14`, color }),
   th: { padding: "10px 12px", textAlign: "right", color: "#94A3B8", fontWeight: 600, fontSize: 10, textTransform: "uppercase", whiteSpace: "nowrap" },
@@ -34,7 +36,11 @@ const compareSizes = students => (STANDARD_STUDENTS.includes(students) ? STANDAR
 
 const SUM_KEYS = ["grossTotal", "tutorTotal", "profitPreVat", "vatAmount", "netRevenue", "keep", "grossTotalEur", "keepEur", "grossTotalUsd", "keepUsd"];
 
+// Yalnızca bu sayfanın ayarları — diğer sayfaların (AppContext) satış fiyatı / eğitmen ücretiyle bağlantısı yok.
+// Ders fiyatı/maliyeti: tüm derslerde aynıysa o değer, değilse null (= her ders kendi resmi değeri).
 const DEFAULT_SETTINGS = {
+  pricePerLesson: uniformCourseValue("pricePerLesson"),
+  costPerLesson: uniformCourseValue("costPerLesson"),
   vatRatePct: GROUP_DEFAULTS.vatRatePct,
   extraPerStudentPerLesson: GROUP_DEFAULTS.extraPerStudentPerLesson,
   minMarginPct: GROUP_DEFAULTS.minMarginPct,
@@ -54,6 +60,9 @@ const tl = money("₺");
 const eur = money("€");
 const usd = money("$");
 const pct = v => `${v < -0.05 ? "−" : ""}%${fmtPct(Math.abs(v))}`;
+const fmtOptional = v => (v == null ? "" : fmtPlain(v));
+const perCourse = v => (v == null ? "ders bazında" : tl(v));
+const inputStyle = changed => (changed ? { ...S.numInput, borderColor: "#FBBF24AA" } : S.numInput);
 const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
 const parseDec = t => parseFloat(String(t).replace(/\s/g, "").replace(",", "."));
 const parseTl = t => parseFloat(String(t).replace(/[\s.₺]/g, "").replace(",", "."));
@@ -170,7 +179,7 @@ function RateField({ symbol, name, value, manual, live, badge, onManual }) {
   return (
     <div>
       <div style={S.label}>1 {symbol} = ₺ <span style={{ color: badge[1] }}>● {badge[0]}</span></div>
-      <NumberField value={value} display={fmtPlain} commitOnBlur onValue={v => { if (v > 0) onManual(v); }} style={S.numInput} aria-label={`${name} kuru`} />
+      <NumberField value={value} display={fmtPlain} commitOnBlur onValue={v => { if (v > 0) onManual(v); }} style={inputStyle(manual != null)} aria-label={`${name} kuru`} />
       {manual != null && (
         <button style={{ ...S.btn, marginTop: 6 }} onClick={() => onManual(null)}>
           {live.rate != null ? "Canlı kura dön" : "Varsayılan kura dön"}
@@ -196,11 +205,12 @@ export default function GroupLessonsPage() {
   const usdTry = manualUsd ?? liveUsd.rate ?? GROUP_DEFAULTS.usdTryFallback;
   const eurBadge = rateBadge(manualEur, liveEur, "EXCEL KURU");
   const usdBadge = rateBadge(manualUsd, liveUsd, "VARSAYILAN");
-  const settingsChanged = manualEur != null || manualUsd != null || Object.keys(DEFAULT_SETTINGS).some(k => settings[k] !== DEFAULT_SETTINGS[k]);
+  const changed = key => settings[key] !== DEFAULT_SETTINGS[key];
+  const settingsChanged = manualEur != null || manualUsd != null || Object.keys(DEFAULT_SETTINGS).some(changed);
   const setSetting = (key, lo, hi) => v => setSettings(prev => ({ ...prev, [key]: clamp(v, lo, hi) }));
   const resetSettings = () => { setSettings(DEFAULT_SETTINGS); setManualEur(null); setManualUsd(null); };
 
-  const course = GROUP_COURSES.find(c => c.id === courseId) ?? GROUP_COURSES[0];
+  const course = priceCourse(GROUP_COURSES.find(c => c.id === courseId) ?? GROUP_COURSES[0], settings);
   const standardSize = STANDARD_STUDENTS.includes(students);
   const sizes = compareSizes(students);
   const sale = calcGroupSale(course, { ...settings, eurTry, usdTry, students, discountPct });
@@ -248,7 +258,7 @@ export default function GroupLessonsPage() {
   const maxRows = useMemo(() => GROUP_COURSES.map(c => {
     const byN = {};
     for (let n = STUDENT_RANGE.min; n <= STUDENT_RANGE.max; n++) byN[n] = calcMaxDiscount(c, { ...settings, students: n });
-    return { course: c, byN };
+    return { course: priceCourse(c, settings), byN };
   }), [settings]);
 
   const analysisRows = useMemo(
@@ -297,8 +307,11 @@ export default function GroupLessonsPage() {
         </div>
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginTop: 14 }}>
-        <span style={S.chip("#CBD5E1")}>KDV %{fmtPlain(settings.vatRatePct)}</span>
-        <span style={S.chip("#CBD5E1")}>Hoca ekstra {tl(settings.extraPerStudentPerLesson)} / öğr. / ders</span>
+        <span style={S.chip(changed("pricePerLesson") ? "#FBBF24" : "#CBD5E1")}>Satış {perCourse(settings.pricePerLesson)} / ders / öğr.</span>
+        <span style={S.chip(changed("costPerLesson") || changed("extraPerStudentPerLesson") ? "#FBBF24" : "#CBD5E1")}>
+          Hoca {perCourse(settings.costPerLesson)} + {tl(settings.extraPerStudentPerLesson)} × öğr. / ders
+        </span>
+        <span style={S.chip(changed("vatRatePct") ? "#FBBF24" : "#CBD5E1")}>KDV %{fmtPlain(settings.vatRatePct)}</span>
         {[["€", eurTry, eurBadge], ["$", usdTry, usdBadge]].map(([sym, rate, badge]) => (
           <span key={sym} style={S.chip("#CBD5E1")}>
             1 {sym} = ₺{fmtRate(rate)}{" "}
@@ -314,29 +327,41 @@ export default function GroupLessonsPage() {
 
       {/* Settings */}
       {settingsOpen && (
-        <div style={{ ...S.card, padding: 16, marginTop: 12, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 14 }}>
+        <div style={{ ...S.card, padding: 16, marginTop: 12, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, max(170px, calc((100% - 42px) / 4))), 1fr))", gap: 14 }}>
           <div>
-            <div style={S.label}>KDV Oranı (%)</div>
-            <NumberField value={settings.vatRatePct} display={fmtPlain} commitOnBlur onValue={setSetting("vatRatePct", 0, 100)} style={S.numInput} aria-label="KDV oranı" />
+            <div style={S.label}>Satış Fiyatı ₺/ders/öğr.</div>
+            <NumberField value={settings.pricePerLesson} display={fmtOptional} placeholder="ders bazında" commitOnBlur onValue={setSetting("pricePerLesson", 1, 1e9)} style={inputStyle(changed("pricePerLesson"))} aria-label="Ders başı satış fiyatı" />
+            <div style={S.hint}>KDV dahil liste fiyatı · tüm dersler</div>
+          </div>
+          <div>
+            <div style={S.label}>Ders Maliyeti (Hoca) ₺/ders</div>
+            <NumberField value={settings.costPerLesson} display={fmtOptional} placeholder="ders bazında" commitOnBlur onValue={setSetting("costPerLesson", 0, 1e9)} style={inputStyle(changed("costPerLesson"))} aria-label="Ders başı hoca maliyeti" />
+            <div style={S.hint}>Hocaya baz ödeme · tüm dersler</div>
           </div>
           <div>
             <div style={S.label}>Hoca Ekstra ₺/öğr./ders</div>
-            <NumberField value={settings.extraPerStudentPerLesson} display={fmtPlain} commitOnBlur onValue={setSetting("extraPerStudentPerLesson", 0, 1e9)} style={S.numInput} aria-label="Öğrenci başına hocaya ekstra ücret" />
+            <NumberField value={settings.extraPerStudentPerLesson} display={fmtPlain} commitOnBlur onValue={setSetting("extraPerStudentPerLesson", 0, 1e9)} style={inputStyle(changed("extraPerStudentPerLesson"))} aria-label="Öğrenci başına hocaya ekstra ücret" />
+          </div>
+          <div>
+            <div style={S.label}>KDV Oranı (%)</div>
+            <NumberField value={settings.vatRatePct} display={fmtPlain} commitOnBlur onValue={setSetting("vatRatePct", 0, 100)} style={inputStyle(changed("vatRatePct"))} aria-label="KDV oranı" />
           </div>
           <div>
             <div style={S.label}>Min. Kâr Marjı (%)</div>
-            <NumberField value={settings.minMarginPct} display={fmtPlain} commitOnBlur onValue={setSetting("minMarginPct", 0, 99)} style={S.numInput} aria-label="Minimum kâr marjı" />
+            <NumberField value={settings.minMarginPct} display={fmtPlain} commitOnBlur onValue={setSetting("minMarginPct", 0, 99)} style={inputStyle(changed("minMarginPct"))} aria-label="Minimum kâr marjı" />
             <div style={S.hint}>0 = başa baş · kalan ÷ KDV hariç gelir</div>
           </div>
           <div>
             <div style={S.label}>Maks İndirim Tavanı (%)</div>
-            <NumberField value={settings.maxDiscountCapPct} display={fmtPlain} commitOnBlur onValue={setSetting("maxDiscountCapPct", 0, 100)} style={S.numInput} aria-label="Maksimum indirim tavanı" />
+            <NumberField value={settings.maxDiscountCapPct} display={fmtPlain} commitOnBlur onValue={setSetting("maxDiscountCapPct", 0, 100)} style={inputStyle(changed("maxDiscountCapPct"))} aria-label="Maksimum indirim tavanı" />
             <div style={S.hint}>100 = tavan yok</div>
           </div>
           <RateField symbol="€" name="Euro" value={eurTry} manual={manualEur} live={liveEur} badge={eurBadge} onManual={setManualEur} />
           <RateField symbol="$" name="Dolar" value={usdTry} manual={manualUsd} live={liveUsd} badge={usdBadge} onManual={setManualUsd} />
           <div style={{ gridColumn: "1 / -1", display: "flex", flexWrap: "wrap", gap: 10, justifyContent: "space-between", alignItems: "center" }}>
-            <span style={S.hint}>Değişiklikler yalnızca bu oturumda geçerli; sayfa yenilenince resmi değerlere döner.</span>
+            <span style={S.hint}>
+              Bu ayarlar yalnızca Grup Dersleri'ni etkiler, diğer sayfalardan bağımsızdır · sayfadan çıkınca veya yenilenince resmi değerlere döner.
+            </span>
             <button style={{ ...S.btn, opacity: settingsChanged ? 1 : 0.4 }} disabled={!settingsChanged} onClick={resetSettings}>
               Varsayılanlara dön
             </button>
