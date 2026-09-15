@@ -6,6 +6,7 @@ import PriceBreakevenModel from "./PriceBreakevenModel";
 import DetailStudentsPage from "./DetailStudentsPage";
 import DetailCoursesPage from "./DetailCoursesPage";
 import DetailAnalysisPage from "./DetailAnalysisPage";
+import GroupLessonsPage from "./GroupLessonsPage";
 
 const S = {
   nav: {
@@ -13,6 +14,7 @@ const S = {
     padding: "16px 32px",
     borderBottom: "1px solid #14465B",
     display: "flex",
+    flexWrap: "wrap",
     gap: "10px",
     fontFamily: "'IBM Plex Mono', 'Cascadia Code', monospace"
   },
@@ -34,6 +36,7 @@ const Navigation = () => {
   const isAylik = loc.pathname === "/ayl%C4%B1k" || loc.pathname === "/ayl%C4%B1k/" || loc.pathname === "/aylık" || loc.pathname === "/aylık/";
   const isFiyat = loc.pathname === "/fiyat" || loc.pathname === "/fiyat/";
   const isDetay = loc.pathname.startsWith("/detay");
+  const isGrup = loc.pathname === "/grup" || loc.pathname === "/grup/";
 
   return (
     <div style={S.nav}>
@@ -41,6 +44,7 @@ const Navigation = () => {
       <Link to="/aylık" style={S.link(isAylik)}>Aylık Nakit Akışı</Link>
       <Link to="/fiyat" style={S.link(isFiyat)}>Fiyat Bazlı Başa Baş</Link>
       <Link to="/detay/ogrenciler" style={S.link(isDetay)}>Detaylı Hesaplama</Link>
+      <Link to="/grup" style={S.link(isGrup)}>Grup Dersleri</Link>
     </div>
   );
 };
@@ -57,6 +61,7 @@ export default function App() {
           <Route path="/detay/ogrenciler" element={<DetailStudentsPage />} />
           <Route path="/detay/dersler" element={<DetailCoursesPage />} />
           <Route path="/detay/analiz" element={<DetailAnalysisPage />} />
+          <Route path="/grup" element={<GroupLessonsPage />} />
         </Routes>
       </HashRouter>
     </AppProvider>
