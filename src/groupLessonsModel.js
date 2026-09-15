@@ -14,8 +14,10 @@ export const STUDENT_RANGE = { min: 1, max: 10 };  // hesaplayıcıda denenebile
 export const STANDARD_STUDENTS = [3, 4, 5];         // standart sınıf mevcudu
 
 // costPerLesson: hocaya ders başı baz ödeme · pricePerLesson: öğrenci başı ders satışı (KDV dahil)
+// Ders sayıları 15.09.2026 güncel tablosuna göre: Excel'deki "SAT Grup Dersi" (30) → SAT Math (10) + SAT English (20).
 export const GROUP_COURSES = [
-  { id: "sat",         category: "SAT",  name: "SAT Grup Dersi",                          lessons: 30,  costPerLesson: 2000, pricePerLesson: 3000, source: "https://veritasedu.net/kurslarimiz/sat-kurs" },
+  { id: "sat-math",    category: "SAT",  name: "SAT Math",                                lessons: 10,  costPerLesson: 2000, pricePerLesson: 3000, source: "https://veritasedu.net/kurslarimiz/sat-kurs" },
+  { id: "sat-eng",     category: "SAT",  name: "SAT English",                             lessons: 20,  costPerLesson: 2000, pricePerLesson: 3000, source: "https://veritasedu.net/kurslarimiz/sat-kurs" },
   { id: "ap-bio",      category: "AP",   name: "AP Biyoloji",                             lessons: 45,  costPerLesson: 2000, pricePerLesson: 3000, source: "https://veritasedu.net/kurslarimiz/ap-kurs/ap-biyoloji" },
   { id: "ap-calc",     category: "AP",   name: "AP Calculus AB/BC",                       lessons: 45,  costPerLesson: 2000, pricePerLesson: 3000, source: "https://veritasedu.net/kurslarimiz/ap-kurs/ap-calculus" },
   { id: "ap-gov",      category: "AP",   name: "AP Comparative Government and Politics",  lessons: 30,  costPerLesson: 2000, pricePerLesson: 3000, source: "https://veritasedu.net/kurslarimiz/ap-kurs/ap-comparative-politics" },
